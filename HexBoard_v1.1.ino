@@ -12,7 +12,7 @@
         https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
       Tools > USB Stack > (Adafruit TinyUSB)
       Sketch > Export Compiled Binary
-
+                                                                                                                                                                           
     Compilation instructions:
       Using arduino-cli...
         # Download the board index
@@ -136,10 +136,11 @@
   #define RAINBOW_MODE 0
   #define TIERED_COLOR_MODE 1
   #define ALTERNATE_COLOR_MODE 2
+  #define COLORS_OF_SOUND_MODE 3
   byte colorMode = RAINBOW_MODE;
 
   #define ANIMATE_NONE 0
-  #define ANIMATE_STAR 1 
+  #define ANIMATE_STAR 1
   #define ANIMATE_SPLASH 2 
   #define ANIMATE_ORBIT 3 
   #define ANIMATE_OCTAVE 4 
@@ -926,7 +927,7 @@
   */
   #define LED_COUNT 140
   #define COLCOUNT 10
-  #define ROWCOUNT 16
+  #define ROWCOUNT 14
   #define BTN_COUNT COLCOUNT*ROWCOUNT
   /*
     Of the 140 buttons, 7 are offset to the bottom left
@@ -1184,6 +1185,61 @@
   uint32_t getLEDcode(colorDef c) {
     return strip.gamma32(strip.ColorHSV(transformHue(c.hue),c.sat,c.val * globalBrightness / 255));
   }
+
+colorDef rgbToHsv(double r, double g, double b) {
+    // R, G, B values are divided by 255 
+    // to change the range from 0..255 to 0..1 
+    r = r / 255.0;
+    g = g / 255.0;
+    b = b / 255.0;
+
+    // h, s, v = hue, saturation, value 
+    double cmax = max(r, max(g, b)); // maximum of r, g, b 
+    double cmin = min(r, min(g, b)); // minimum of r, g, b 
+    double diff = cmax - cmin; // diff of cmax and cmin. 
+    float h = -1;
+    byte s = -1;
+
+    // if cmax and cmax are equal then h = 0 
+    if (cmax == cmin)
+        h = 0;
+
+        // if cmax equal r then compute h
+    else if (cmax == r)
+        h = fmod(60 * ((g - b) / diff) + 360, 360);
+
+        // if cmax equal g then compute h
+    else if (cmax == g)
+        h = fmod(60 * ((b - r) / diff) + 120, 360);
+
+        // if cmax equal b then compute h
+    else if (cmax == b)
+        h = fmod(60 * ((r - g) / diff) + 240, 360);
+
+    // if cmax equal zero 
+    if (cmax == 0)
+        s = 0;
+    else
+        s = (diff / cmax) * 100;
+
+    // compute v 
+    byte v = cmax * 100;
+
+    /////////// for clarity, i think best idea default to sat vivid and value normal as it is a bit dull using sv by default from the values obtained from colorsOfSound picker
+    //// but would be good to stil vary the saturation and lightness a bit more between tones somewhere inbetween using sat and vivid values and having a quite high base value
+    return (colorDef) {h, SAT_VIVID, VALUE_NORMAL};
+    // return (colorDef) {h,s,v};
+    // return (colorDef) {h,SAT_VIVID,VALUE_NORMAL};
+
+}
+
+byte factorAdjust(float color, float factor, byte intensityMax, double gamma) {
+    if (color == 0.0) {
+        return 0;
+    } else {
+        return round(intensityMax * pow((color * factor), gamma));
+    }
+}
   /*
     This function cycles through each button, and based on what color
     palette is active, it calculates the LED color code in the palette, 
@@ -1199,6 +1255,12 @@
         if (paletteBeginsAtKeyCenter) {
           paletteIndex = current.keyDegree(paletteIndex);
         }
+          float cents = 0;
+          bool perf = 0;
+          float center = 0.0;
+          float offCenter = 0;
+          int16_t altHue = 0;
+          float deSaturate = 0;
         switch (colorMode) {
           case TIERED_COLOR_MODE: // This mode sets the color based on the palettes defined above.
             setColor = palette[current.tuningIndex].getColor(paletteIndex);
@@ -1213,9 +1275,9 @@
           case ALTERNATE_COLOR_MODE:
             // This mode assigns each note a color based on the interval it forms with the root note.
             // This is an adaptation of an algorithm developed by Nicholas Fox and Kite Giedraitis.
-            float cents = current.tuning().stepSize * paletteIndex;
-            bool perf = 0;
-            float center = 0.0;
+            cents = current.tuning().stepSize * paletteIndex;
+            perf = 0;
+            center = 0.0;
                    if                    (cents <   50)  {perf = 1; center =    0.0;}
               else if ((cents >=  50) && (cents <  250)) {          center =  147.1;}
               else if ((cents >= 250) && (cents <  450)) {          center =  351.0;}
@@ -1228,16 +1290,100 @@
               else if ((cents >=1450) && (cents < 1650)) {          center = 1551.0;}
               else if ((cents >=1650) && (cents < 1850)) {perf = 1; center = 1698.0;}
               else if ((cents >=1800) && (cents <=1950)) {perf = 1; center = 1902.0;}
-            float offCenter = cents - center;
-            int16_t altHue = positiveMod((int)(150 + (perf * ((offCenter > 0) ? -72 : 72)) - round(1.44 * offCenter)), 360);
-            float deSaturate = perf * (abs(offCenter) < 20) * (1 - (0.02 * abs(offCenter)));
+            offCenter = cents - center;
+            altHue = positiveMod((int)(150 + (perf * ((offCenter > 0) ? -72 : 72)) - round(1.44 * offCenter)),
+                                     360);
+            deSaturate = perf * (abs(offCenter) < 20) * (1 - (0.02 * abs(offCenter)));
             setColor = { 
               (float)altHue, 
               (byte)(255 - round(255 * deSaturate)), 
               (byte)(cents ? VALUE_SHADE : VALUE_NORMAL) };
             break;
+            case COLORS_OF_SOUND_MODE:
+                double lightFreqRedLower = 400000000000000;
+                int speedOfLightVacuum = 299792458; // m/sec
+                int speedOfSound = 346; // hardcode this m/sec..  I suppose you could be in a very strange atmosphere like underwater or very very high altitude?!
+                if (h[i].frequency > 0) {
+                    double lightFrequency = h[i].frequency;
+                    int lightOctave = 0; // might be able to use byte
+                    while (lightFrequency < lightFreqRedLower) {
+                        lightFrequency *= 2;
+                        ++lightOctave;
+                    }
+                    // Scale to THz and Nanometers
+                    float lightWavelength = speedOfLightVacuum / lightFrequency;
+                    float lightWavelengthNM = lightWavelength * 1000000000;
+
+                    // var lightRGB = getColorFromWaveLength (lightWavelengthNM) :
+                    // Color values in the range -1 to 1
+                    float gamma = 1.00;
+                    float blue, green, red, factor = 0;
+
+                    if (lightWavelengthNM >= 350 && lightWavelengthNM < 440) {
+                        // From Purple (1, 0, 1) to Blue (0, 0, 1), with increasing intensity (set below)
+                        red = -(lightWavelengthNM - 440) / (440 - 350);
+                        green = 0.0;
+                        blue = 1.0;
+                    } else if (lightWavelengthNM >= 440 && lightWavelengthNM < 490) {
+                        // From Blue (0, 0, 1) to Cyan (0, 1, 1)
+                        red = 0.0;
+                        green = (lightWavelengthNM - 440) / (490 - 440);
+                        blue = 1.0;
+
+                    } else if (lightWavelengthNM >= 490 && lightWavelengthNM < 510) {
+                        // From  Cyan (0, 1, 1)  to  Green (0, 1, 0)
+                        red = 0.0;
+                        green = 1.0;
+                        blue = -(lightWavelengthNM - 510) / (510 - 490);
+
+                    } else if (lightWavelengthNM >= 510 && lightWavelengthNM < 580) {
+                        // From  Green (0, 1, 0)  to  Yellow (1, 1, 0)
+                        red = (lightWavelengthNM - 510) / (580 - 510);
+                        green = 1.0;
+                        blue = 0.0;
+
+                    } else if (lightWavelengthNM >= 580 && lightWavelengthNM < 645) {
+                        // From  Yellow (1, 1, 0)  to  Red (1, 0, 0)
+                        red = 1.0;
+                        green = -(lightWavelengthNM - 645) / (645 - 580);
+                        blue = 0.0;
+
+                    } else if (lightWavelengthNM >= 645 && lightWavelengthNM <= 780) {
+                        // Solid Red (1, 0, 0), with decreasing intensity (set below)
+                        red = 1.0;
+                        green = 0.0;
+                        blue = 0.0;
+
+                    } else {
+                        red = 0.0;
+                        green = 0.0;
+                        blue = 0.0;
+                    }
+                    // Intensity factor goes through the range:
+                    // 0.1 (350-420 nm) 1.0 (420-645 nm) 1.0 (645-780 nm) 0.2
+
+                    if (lightWavelengthNM >= 350 && lightWavelengthNM < 420) {
+                        factor = 0.1 + 0.9 * (lightWavelengthNM - 350) / (420 - 350);
+
+                    } else if (lightWavelengthNM >= 420 && lightWavelengthNM < 645) {
+                        factor = 1.0;
+
+                    } else if (lightWavelengthNM >= 645 && lightWavelengthNM <= 780) {
+                        factor = 0.2 + 0.8 * (780 - lightWavelengthNM) / (780 - 645);
+
+                    } else {
+                        factor = 0.0;
+                    }
+                    setColor = rgbToHsv(
+                            factorAdjust(red, factor, (byte) 255, gamma),
+                            factorAdjust(green, factor, (byte) 255, gamma),
+                            factorAdjust(blue, factor, (byte) 255, gamma)
+                    );
+
+                }
+                break;
         }
-        h[i].LEDcodeRest   = getLEDcode(setColor);
+        h[i].LEDcodeRest = getLEDcode(setColor);
         h[i].LEDcodePlay = getLEDcode(setColor.tint()); 
         h[i].LEDcodeDim  = getLEDcode(setColor.shade());  
         setColor = {HUE_NONE,SAT_BW,VALUE_BLACK};
@@ -2446,8 +2592,11 @@
   };
   GEMSelect selectTransposeSteps( 255, optionIntTransposeSteps);
   GEMItem  menuItemTransposeSteps( "Transpose:",   transposeSteps,  selectTransposeSteps, changeTranspose);
-    
-  SelectOptionByte optionByteColor[] =    { { "Rainbow", RAINBOW_MODE }, { "Tiered" , TIERED_COLOR_MODE }, {"Alt", ALTERNATE_COLOR_MODE} };
+
+SelectOptionByte optionByteColor[] = {{"Rainbow",       RAINBOW_MODE},
+                                      {"Tiered",        TIERED_COLOR_MODE},
+                                      {"Alt",           ALTERNATE_COLOR_MODE},
+                                      {"Physics", COLORS_OF_SOUND_MODE}};
   GEMSelect selectColor( sizeof(optionByteColor) / sizeof(SelectOptionByte), optionByteColor);
   GEMItem  menuItemColor( "Color mode:", colorMode, selectColor, setLEDcolorCodes);
 
