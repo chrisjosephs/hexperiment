@@ -227,9 +227,9 @@
     scale choices, for a given equal step
     tuning system.
   */
-  /* pitch bend based emulation allowing mapping of midi data from microtonal to 12
+  /* pitch bend based emulation allowing mapping of MIDI data from microtonal to 12
   tone MPE with a pitchbend can be disabled for direct EDO mapping */
-  bool pitchBendEmulation = true; // Controls microtonal pitch bend, default ON
+  byte pitchBendEmulation = 0; // Controls microtonal pitch bend, default ON
 
   class tuningDef {
   public:
@@ -2660,6 +2660,7 @@ SelectOptionByte optionByteColor[] = {{"Rainbow",       RAINBOW_MODE},
   GEMSelect selectPBSpeed(sizeof(optionIntPBWheel) / sizeof(SelectOptionInt), optionIntPBWheel);
   GEMItem  menuItemPBSpeed( "PB wheel:", pbWheelSpeed, selectPBSpeed);
 
+  GEMItem menuItemPitchBendEmulation("MPE PitchBend Tuning emu?", pitchBendEmulation, selectYesOrNo);
   // Call this procedure to return to the main menu
   void menuHome() {
     menu.setMenuPageCurrent(menuPageMain);
@@ -2816,6 +2817,7 @@ SelectOptionByte optionByteColor[] = {{"Rainbow",       RAINBOW_MODE},
     the contents of that item, which is what the * beforehand does. 
   */
   void createTuningMenuItems() {
+    menuPageTuning.addMenuItem(menuItemPitchBendEmulation);
     for (byte T = 0; T < TUNINGCOUNT; T++) {
       menuItemTuning[T] = new GEMItem(tuningOptions[T].name.c_str(), changeTuning, T);
       menuPageTuning.addMenuItem(*menuItemTuning[T]);
