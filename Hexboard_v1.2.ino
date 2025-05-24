@@ -4696,6 +4696,7 @@ void animateStaticBeams() {
       // menuItemAudioD added here for hardware V1.2
     menuPageMain.addMenuItem(menuGotoMIDI);
       menuPageMIDI.addMenuItem(menuItemSelectMIDIChannel);
+      menuPageMIDI.addMenuItem(menuItemPitchBendEmulation);
       menuPageMIDI.addMenuItem(menuItemMPEpitchBend);
       menuPageMIDI.addMenuItem(menuItemRolandMT32);
       menuPageMIDI.addMenuItem(menuItemGeneralMidi);
