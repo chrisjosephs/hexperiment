@@ -196,7 +196,7 @@
   #define BRIGHT_FAINT 33   // Highest brightness before backlight turns on
   #define BRIGHT_FAINTER 24 // Lowest brightness before any highlighted button is lit in all color modes
   #define BRIGHT_OFF 0
-  byte globalBrightness = BRIGHT_DIM;
+  byte globalBrightness = BRIGHT_MID;
 
 // @microtonal
   /*
@@ -1621,9 +1621,7 @@ colorDef rgbToHsv(double r, double g, double b) {
     /////////// for clarity, i think best idea default to sat vivid and value normal as it is a bit dull using sv by default from the values obtained from colorsOfSound picker
     //// but would be good to stil vary the saturation and lightness a bit more between tones somewhere inbetween using sat and vivid values and having a quite high base value
     return (colorDef) {h, SAT_VIVID, VALUE_NORMAL};
-    // return (colorDef) {h,s,v};
-    // return (colorDef) {h,SAT_VIVID,VALUE_NORMAL};
-
+    return (colorDef) {h,s,v};
 }
 
 byte factorAdjust(float color, float factor, byte intensityMax, double gamma) {
@@ -3608,7 +3606,7 @@ void animateStaticBeams() {
     To be honest I don't know how to get just a plain text line to show here other than this!
   */
   void fakeButton() {}
-  GEMItem  menuItemVersion("Firmware 1.2-alpha1", fakeButton);
+  GEMItem  menuItemVersion("ColorOfSound1.2a", fakeButton);
   SelectOptionByte optionByteHardware[] =  {
     { "V1.1", HARDWARE_UNKNOWN }, { "V1.1" , HARDWARE_V1_1 },
     { "V1.2", HARDWARE_V1_2 }
@@ -4405,7 +4403,7 @@ void animateStaticBeams() {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  SelectOptionByte optionByteColor[] =    { { "Rainbow", RAINBOW_MODE }, { "Tiered" , TIERED_COLOR_MODE }, { "Alt", ALTERNATE_COLOR_MODE }, { "Fifths", RAINBOW_OF_FIFTHS_MODE }, { "Piano", PIANO_COLOR_MODE }, { "Alt Piano", PIANO_ALT_COLOR_MODE }, { "Filament", PIANO_INCANDESCENT_COLOR_MODE } };
+  SelectOptionByte optionByteColor[] =    { {"Physics", COLORS_OF_SOUND_MODE}, { "Rainbow", RAINBOW_MODE }, { "Tiered" , TIERED_COLOR_MODE }, { "Alt", ALTERNATE_COLOR_MODE }, { "Fifths", RAINBOW_OF_FIFTHS_MODE }, { "Piano", PIANO_COLOR_MODE }, { "Alt Piano", PIANO_ALT_COLOR_MODE }, { "Filament", PIANO_INCANDESCENT_COLOR_MODE }};
   GEMSelect selectColor( sizeof(optionByteColor) / sizeof(SelectOptionByte), optionByteColor);
   GEMItem  menuItemColor( "Color Mode", colorMode, selectColor, setLEDcolorCodes);
 
