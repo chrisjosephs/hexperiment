@@ -3403,47 +3403,48 @@ void animateStaticBeams() {
   // run this if the layout, key, or transposition changes, but not if color or scale changes
   void assignPitches() {
   sendToLog("assignPitches was called with pitchBendEmulation = " + std::to_string(pitchBendEmulation));
-  if (!pitchBendEmulation) {
-    // Logic for direct EDO to MIDI mapping (no pitch bend)
-    int stepsPerCycle = current.tuning().cycleLength;
-    byte zeroStepHex = current.layout().hexMiddleC;
+    if (!pitchBendEmulation) {
+      const int CENTER_MIDI_NOTE = 60; // Middle C (C4)
+      int stepsPerCycle = current.tuning().cycleLength;
+      byte zeroStepHex = current.layout().hexMiddleC;
 
-    for (byte i = 0; i < LED_COUNT; i++) {
-      if (!(h[i].isCmd)) {
-        int8_t distCol = h[i].coordCol - h[zeroStepHex].coordCol;
-        int8_t distRow = h[i].coordRow - h[zeroStepHex].coordRow;
-        int edoStep = (distCol * current.layout().acrossSteps) +
-                      (distRow * current.layout().dnLeftSteps);
-        // if you want to wrap around after 128:
-        //h[i].note = positiveMod(edoStep, 128);
-        if (edoStep >= 0 && edoStep <= 127) {
-            h[i].note =  edoStep;
-        }
-        else {
+      for (byte i = 0; i < LED_COUNT; i++) {
+        if (!(h[i].isCmd)) {
+          int8_t distCol = h[i].coordCol - h[zeroStepHex].coordCol;
+          int8_t distRow = h[i].coordRow - h[zeroStepHex].coordRow;
+          int edoStepOffset = (distCol * current.layout().acrossSteps) +
+                              (distRow * current.layout().dnLeftSteps);
+
+          // Combine layout offset, transposition, and center target
+          int midiNote = CENTER_MIDI_NOTE + transposeSteps + edoStepOffset;
+
+          if (midiNote >= 0 && midiNote <= 127) {
+            h[i].note = midiNote;
+            h[i].bend = 0;
+
+            float stepsFromA4 = current.pitchRelToA4(midiNote);
+            float midiFloat = stepsToMIDI(stepsFromA4);
+            h[i].frequency = MIDItoFreq(midiFloat);
+          } else {
             h[i].note = UNUSED_NOTE;
             h[i].bend = 0;
             h[i].frequency = 0.0;
             h[i].inScale = 0;
+          }
+
+          sendToLog(
+              "hex #" + std::to_string(i) + ", " +
+              "edoStepOffset=" + std::to_string(edoStepOffset) + ", " +
+              "transposeSteps=" + std::to_string(transposeSteps) + ", " +
+              "note=" + std::to_string(h[i].note) + ", " +
+              "bend=" + std::to_string(h[i].bend) + ", " +
+              "freq=" + std::to_string(h[i].frequency) + ", " +
+              "inScale? " + std::to_string(h[i].inScale) + "."
+          );
         }
-        h[i].bend = 0;
-
-        // Calculate frequency based on EDO step (similar to original logic)
-        float edoStepsFromA = (float)edoStep - current.pitchRelToA4(0); // Steps from A (adjusting for layout's 0 point)
-        float frequency = MIDItoFreq(freqToMIDI(CONCERT_A_HZ) + (edoStepsFromA * current.tuning().stepSize / 100.0));
-        h[i].frequency = frequency;
-
-        sendToLog(
-          "hex #" + std::to_string(i) + ", " +
-          "edoStep=" + std::to_string(edoStep) + ", " +
-          "isCmd? " + std::to_string(h[i].isCmd) + ", " +
-          "note=" + std::to_string(h[i].note) + ", " +
-          "bend=" + std::to_string(h[i].bend) + ", " +
-          "freq=" + std::to_string(h[i].frequency) + ", " +
-          "inScale? " + std::to_string(h[i].inScale) + "."
-        );
       }
     }
-  } else {
+    else {
       for (byte i = 0; i < LED_COUNT; i++) {
         if (!(h[i].isCmd)) {
           // steps is the distance from C
