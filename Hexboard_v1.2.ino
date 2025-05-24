@@ -3402,26 +3402,39 @@ void animateStaticBeams() {
   */
   // run this if the layout, key, or transposition changes, but not if color or scale changes
   void assignPitches() {
-    sendToLog("assignPitch was called:");
+  sendToLog("assignPitches was called with pitchBendEmulation = " + std::to_string(pitchBendEmulation));
+  if (!pitchBendEmulation) {
+    // Logic for direct EDO to MIDI mapping (no pitch bend)
+    int stepsPerCycle = current.tuning().cycleLength;
+    byte zeroStepHex = current.layout().hexMiddleC;
+
     for (byte i = 0; i < LED_COUNT; i++) {
       if (!(h[i].isCmd)) {
-        // steps is the distance from C
-        // the stepsToMIDI function needs distance from A4
-        // it also needs to reflect any transposition, but
-        // NOT the key of the scale.
-        float N = stepsToMIDI(current.pitchRelToA4(h[i].stepsFromC));
-        if (N < 0 || N >= 128) {
-          h[i].note = UNUSED_NOTE;
-          h[i].bend = 0;
-          h[i].frequency = 0.0;
-        } else {
-          h[i].note = ((N >= 127) ? 127 : round(N));
-          h[i].bend = (ldexp(N - h[i].note, 13) / MPEpitchBendSemis);
-          h[i].frequency = MIDItoFreq(N);
+        int8_t distCol = h[i].coordCol - h[zeroStepHex].coordCol;
+        int8_t distRow = h[i].coordRow - h[zeroStepHex].coordRow;
+        int edoStep = (distCol * current.layout().acrossSteps) +
+                      (distRow * current.layout().dnLeftSteps);
+        // if you want to wrap around after 128:
+        //h[i].note = positiveMod(edoStep, 128);
+        if (edoStep >= 0 && edoStep <= 127) {
+            h[i].note =  edoStep;
         }
+        else {
+            h[i].note = UNUSED_NOTE;
+            h[i].bend = 0;
+            h[i].frequency = 0.0;
+            h[i].inScale = 0;
+        }
+        h[i].bend = 0;
+
+        // Calculate frequency based on EDO step (similar to original logic)
+        float edoStepsFromA = (float)edoStep - current.pitchRelToA4(0); // Steps from A (adjusting for layout's 0 point)
+        float frequency = MIDItoFreq(freqToMIDI(CONCERT_A_HZ) + (edoStepsFromA * current.tuning().stepSize / 100.0));
+        h[i].frequency = frequency;
+
         sendToLog(
           "hex #" + std::to_string(i) + ", " +
-          "steps=" + std::to_string(h[i].stepsFromC) + ", " +
+          "edoStep=" + std::to_string(edoStep) + ", " +
           "isCmd? " + std::to_string(h[i].isCmd) + ", " +
           "note=" + std::to_string(h[i].note) + ", " +
           "bend=" + std::to_string(h[i].bend) + ", " +
@@ -3430,7 +3443,36 @@ void animateStaticBeams() {
         );
       }
     }
-    sendToLog("assignPitches complete.");
+  } else {
+      for (byte i = 0; i < LED_COUNT; i++) {
+        if (!(h[i].isCmd)) {
+          // steps is the distance from C
+          // the stepsToMIDI function needs distance from A4
+          // it also needs to reflect any transposition, but
+          // NOT the key of the scale.
+          float N = stepsToMIDI(current.pitchRelToA4(h[i].stepsFromC));
+          if (N < 0 || N >= 128) {
+            h[i].note = UNUSED_NOTE;
+            h[i].bend = 0;
+            h[i].frequency = 0.0;
+          } else {
+            h[i].note = ((N >= 127) ? 127 : round(N));
+            h[i].bend = (ldexp(N - h[i].note, 13) / MPEpitchBendSemis);
+            h[i].frequency = MIDItoFreq(N);
+          }
+          sendToLog(
+            "hex #" + std::to_string(i) + ", " +
+            "steps=" + std::to_string(h[i].stepsFromC) + ", " +
+            "isCmd? " + std::to_string(h[i].isCmd) + ", " +
+            "note=" + std::to_string(h[i].note) + ", " +
+            "bend=" + std::to_string(h[i].bend) + ", " +
+            "freq=" + std::to_string(h[i].frequency) + ", " +
+            "inScale? " + std::to_string(h[i].inScale) + "."
+          );
+        }
+      }
+      sendToLog("assignPitches complete.");
+    }
   }
   void applyScale() {
     sendToLog("applyScale was called:");
@@ -4432,6 +4474,7 @@ void animateStaticBeams() {
   GEMSelect selectPBSpeed(sizeof(optionIntPBWheel) / sizeof(SelectOptionInt), optionIntPBWheel);
   GEMItem  menuItemPBSpeed( "PB Wheel", pbWheelSpeed, selectPBSpeed);
 
+  GEMItem menuItemPitchBendEmulation("PBend Tuning emu?", pitchBendEmulation, selectYesOrNo);
   // Call this procedure to return to the main menu
   void menuHome() {
     menu.setMenuPageCurrent(menuPageMain);
