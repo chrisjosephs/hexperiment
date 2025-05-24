@@ -227,6 +227,10 @@
     scale choices, for a given equal step
     tuning system.
   */
+  /* pitch bend based emulation allowing mapping of midi data from microtonal to 12
+  tone MPE with a pitchbend can be disabled for direct EDO mapping */
+  bool pitchBendEmulation = true; // Controls microtonal pitch bend, default ON
+
   class tuningDef {
   public:
     std::string name;         // limit is 17 characters for GEM menu
@@ -2188,14 +2192,43 @@ byte factorAdjust(float color, float factor, byte intensityMax, double gamma) {
     of the hex grid.
   */
   // run this if the layout, key, or transposition changes, but not if color or scale changes
-  void assignPitches() {     
-    sendToLog("assignPitch was called:");
+  void assignPitches() {
+  sendToLog("assignPitches was called with pitchBendEmulation = " + std::to_string(pitchBendEmulation));
+  if (!pitchBendEmulation) {
+    // Logic for direct EDO to MIDI mapping (no pitch bend)
+    int stepsPerCycle = current.tuning().cycleLength;
+    byte zeroStepHex = current.layout().hexMiddleC;
+
     for (byte i = 0; i < LED_COUNT; i++) {
       if (!(h[i].isCmd)) {
-        // steps is the distance from C
-        // the stepsToMIDI function needs distance from A4
-        // it also needs to reflect any transposition, but
-        // NOT the key of the scale.
+        int8_t distCol = h[i].coordCol - h[zeroStepHex].coordCol;
+        int8_t distRow = h[i].coordRow - h[zeroStepHex].coordRow;
+        int edoStep = (distCol * current.layout().acrossSteps) +
+                      (distRow * current.layout().dnLeftSteps);
+        h[i].note = positiveMod(edoStep, 128);
+        h[i].bend = 0;
+
+        // Calculate frequency based on EDO step (similar to original logic)
+        float edoStepsFromA = (float)edoStep - current.pitchRelToA4(0); // Steps from A (adjusting for layout's 0 point)
+        float frequency = MIDItoFreq(freqToMIDI(CONCERT_A_HZ) + (edoStepsFromA * current.tuning().stepSize / 100.0));
+        h[i].frequency = frequency;
+
+        sendToLog(
+          "hex #" + std::to_string(i) + ", " +
+          "edoStep=" + std::to_string(edoStep) + ", " +
+          "note=" + std::to_string(h[i].note) + ", " +
+          "bend=" + std::to_string(h[i].bend) + ", " +
+          "freq=" + std::to_string(h[i].frequency) + "."
+        );
+      }
+    }
+  } else {
+    for (byte i = 0; i < LED_COUNT; i++) {
+      // steps is the distance from C
+      // the stepsToMIDI function needs distance from A4
+      // it also needs to reflect any transposition, but
+      // NOT the key of the scale.
+      if (!(h[i].isCmd)) {
         float N = stepsToMIDI(current.pitchRelToA4(h[i].stepsFromC));
         if (N < 0 || N >= 128) {
           h[i].note = UNUSED_NOTE;
@@ -2210,15 +2243,17 @@ byte factorAdjust(float color, float factor, byte intensityMax, double gamma) {
           "hex #" + std::to_string(i) + ", " +
           "steps=" + std::to_string(h[i].stepsFromC) + ", " +
           "isCmd? " + std::to_string(h[i].isCmd) + ", " +
-          "note=" + std::to_string(h[i].note) + ", " + 
-          "bend=" + std::to_string(h[i].bend) + ", " + 
-          "freq=" + std::to_string(h[i].frequency) + ", " + 
+          "note=" + std::to_string(h[i].note) + ", " +
+          "bend=" + std::to_string(h[i].bend) + ", " +
+          "freq=" + std::to_string(h[i].frequency) + ", " +
           "inScale? " + std::to_string(h[i].inScale) + "."
         );
       }
     }
-    sendToLog("assignPitches complete.");
-  }
+
+      sendToLog("assignPitches complete.");
+    }
+}
   void applyScale() {
     sendToLog("applyScale was called:");
     for (byte i = 0; i < LED_COUNT; i++) {
