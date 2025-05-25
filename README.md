@@ -20,3 +20,13 @@ Todo:
 
 1) Make bosanquet-wilson always the default in various tunings to save time
 2) Make build script to copy new/modified scales from my scales library in to code from scales folder whenever ran
+3) Make a scales > modes submenu to organise scales > modes hierarchically
+
+Extras:
+
+Some extra scales have been added, thus far:
+
+  * 31-EDO: 
+    * Chromatic Meantone,
+    * Chromatic Meantone + 14 (adds undecimal 11th harmonic), 
+    * Lydian mode subet of Chromatic Meantone + 14

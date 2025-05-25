@@ -799,6 +799,9 @@
     { "Orwell",            TUNING_31EDO,  { 4,3,4,3,4,3,4,3,3 } },
     { "Neutral",           TUNING_31EDO,  { 4,4,4,4,4,4,4,3 } },
     { "Miracle",           TUNING_31EDO,  { 4,3,3,3,3,3,3,3,3,3 } },
+    { "Chrom-Meantone",    TUNING_31EDO,  { 2,3,3,2,3,2,3,2,3,2,3 } },
+    { "Chrom-Meant+14",    TUNING_31EDO,  { 2,3,3,2,3,1,1,3,2,3,2,3 } },
+    { "ChrMeaLydian+14",   TUNING_31EDO,  { 5,5,4,1,3,5,5 } }, // This is a mode, we need a mode submenu
     // 31 EDO ZETA PEAK;
     { "Diatonic",          TUNING_31EDO_ZETA,  { 5,5,3,5,5,5,3 } },
     { "Pentatonic",        TUNING_31EDO_ZETA,  { 5,5,8,5,8 } },
