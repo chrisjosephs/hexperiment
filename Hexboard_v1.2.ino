@@ -3403,12 +3403,12 @@ void animateStaticBeams() {
   // run this if the layout, key, or transposition changes, but not if color or scale changes
   void assignPitches() {
     sendToLog("assignPitches was called with pitchBendEmulation = " + std::to_string(pitchBendEmulation));
-      if (!pitchBendEmulation) {
+    if (!pitchBendEmulation) {
       const int CENTER_MIDI_NOTE = 60; // Middle C (C4)
       int stepsPerCycle = current.tuning().cycleLength;
       byte zeroStepHex = current.layout().hexMiddleC;
 
-      // Get the transformed layout steps (same as in applyLayout)
+      // Get the transformed layout steps
       int8_t acrossSteps = current.layout().acrossSteps;
       int8_t dnLeftSteps = current.layout().dnLeftSteps;
       if(mirrorUpDown) dnLeftSteps = -(acrossSteps + dnLeftSteps);
@@ -3424,8 +3424,8 @@ void animateStaticBeams() {
           int8_t distCol = h[i].coordCol - h[zeroStepHex].coordCol;
           int8_t distRow = h[i].coordRow - h[zeroStepHex].coordRow;
 
-          // Calculate the transformed musical interval from the center
-          int transformedStepsFromC = (
+          // Calculate the transformed musical interval from the reference hex
+          int transformedStepsFromRef = (
             (distCol * acrossSteps) +
             (distRow * (
               acrossSteps +
@@ -3433,8 +3433,8 @@ void animateStaticBeams() {
             ))
           ) / 2;
 
-          // Map this interval to a MIDI note relative to the center
-          int midiNote = CENTER_MIDI_NOTE + transformedStepsFromC;
+          // Map this interval to a MIDI note relative to the center, with transposition
+          int midiNote = CENTER_MIDI_NOTE + transposeSteps + transformedStepsFromRef;
 
           if (midiNote >= 0 && midiNote <= 127) {
             h[i].note = midiNote;
@@ -3444,8 +3444,8 @@ void animateStaticBeams() {
             if (stepsPerCycle == 12) {
               h[i].frequency = MIDItoFreq(midiNote);
             } else {
-              float edoStepsFromA = (float)transformedStepsFromC * (1200.0 / stepsPerCycle) / 100.0;
-              float targetMIDI = freqToMIDI(CONCERT_A_HZ) + edoStepsFromA;
+              float edoStepsFromCenter = (float)transformedStepsFromRef * (1200.0 / stepsPerCycle) / 100.0;
+              float targetMIDI = freqToMIDI(CONCERT_A_HZ) + edoStepsFromCenter;
               h[i].frequency = MIDItoFreq(targetMIDI);
             }
           } else {
@@ -3457,7 +3457,8 @@ void animateStaticBeams() {
 
           sendToLog(
               "hex #" + std::to_string(i) + ", " +
-              "transformedStepsFromC=" + std::to_string(transformedStepsFromC) + ", " +
+              "transformedStepsFromRef=" + std::to_string(transformedStepsFromRef) + ", " +
+              "transposeSteps=" + std::to_string(transposeSteps) + ", " +
               "note=" + std::to_string(h[i].note) + ", " +
               "bend=" + std::to_string(h[i].bend) + ", " +
               "freq=" + std::to_string(h[i].frequency) + ", " +
