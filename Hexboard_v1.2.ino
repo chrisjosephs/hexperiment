@@ -3433,6 +3433,7 @@ void animateStaticBeams() {
             ))
           ) / 2;
 
+          h[i].stepsFromC = transformedStepsFromRef;
           // Map this interval to a MIDI note relative to the center, with transposition
           int midiNote = CENTER_MIDI_NOTE + transposeSteps + transformedStepsFromRef;
 
@@ -3505,7 +3506,7 @@ void animateStaticBeams() {
         if (current.scale().tuning == ALL_TUNINGS) {
           h[i].inScale = 1;
         } else {
-          byte degree = current.keyDegree(h[i].stepsFromC);
+          byte degree = current.keyDegree(h[i].stepsFromC + transposeSteps);
           if (degree == 0) {
             h[i].inScale = 1;    // the root is always in the scale
           } else {
@@ -3571,8 +3572,8 @@ void animateStaticBeams() {
         );
       }
     }
-    applyScale();        // when layout changes, have to re-apply scale and re-apply LEDs
     assignPitches();     // same with pitches
+    applyScale();        // when layout changes, have to re-apply scale and re-apply LEDs
     setLEDcolorCodes();
     sendToLog("buildLayout complete.");
   }
@@ -4614,6 +4615,7 @@ void animateStaticBeams() {
   void changeTranspose() {     // when you change the transpose via the menu
     current.transpose = transposeSteps;
     assignPitches();
+    applyScale();       // (with fix) marks in-scale tones after transpose
     updateSynthWithNewFreqs();
     setLEDcolorCodes();
   }
