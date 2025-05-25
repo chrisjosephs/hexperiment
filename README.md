@@ -3,9 +3,11 @@
 See: https://www.flutopedia.com/sound_color.htm
 
 2) Enables a new direct microtonal/edoOctave+note steps from layout straight to MIDI note mode. The pitchbend emulation from nearest 12 tone mode can now be disabled from the menu (and is disabled by default), so the real MIDI steps will be sent directly through to your DAW to synth with scala/tun tuning instead, but the internal synth will still also play the correct frequency notes.  
-3) Additionally MIDI notes that go < 0 or > note 127 will now be blacked out on the keyboard when in direct mode rather than wrapping round
+   * calculate freq of note for internal synth when center c = 60 +/- transpose steps in direct to MIDI mode...
+4) Additionally MIDI notes that go < 0 or > note 127 will now be blacked out on the keyboard when in direct mode rather than wrapping round
 4) Centre note 60 better when in direct MIDI mode, and transpose will also shift the keys correctly for the direct MIDI mapping
 5) Physics Colors of Sounds mode is always the default color map now (so also put it at the bottom of the Color change menu to save clicking back through it again anyway)
+7)   Allow extra tuning data for degree 0 frequency hz such as given by ableton microtuning scala files for additional accuracy
 
 Outstanding issues: 
 
