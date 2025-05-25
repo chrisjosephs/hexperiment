@@ -196,7 +196,7 @@
   #define BRIGHT_FAINT 33   // Highest brightness before backlight turns on
   #define BRIGHT_FAINTER 24 // Lowest brightness before any highlighted button is lit in all color modes
   #define BRIGHT_OFF 0
-  byte globalBrightness = BRIGHT_DIM;
+  byte globalBrightness = BRIGHT_MID;
 
 // @microtonal
   /*
@@ -1621,9 +1621,7 @@ colorDef rgbToHsv(double r, double g, double b) {
     /////////// for clarity, i think best idea default to sat vivid and value normal as it is a bit dull using sv by default from the values obtained from colorsOfSound picker
     //// but would be good to stil vary the saturation and lightness a bit more between tones somewhere inbetween using sat and vivid values and having a quite high base value
     return (colorDef) {h, SAT_VIVID, VALUE_NORMAL};
-    // return (colorDef) {h,s,v};
-    // return (colorDef) {h,SAT_VIVID,VALUE_NORMAL};
-
+    return (colorDef) {h,s,v};
 }
 
 byte factorAdjust(float color, float factor, byte intensityMax, double gamma) {
@@ -1810,7 +1808,7 @@ byte factorAdjust(float color, float factor, byte intensityMax, double gamma) {
 
                     // var lightRGB = getColorFromWaveLength (lightWavelengthNM) :
                     // Color values in the range -1 to 1
-                    float gamma = 1.00;
+                    float gamma = 1.5;
                     float blue, green, red, factor = 0;
 
                     if (lightWavelengthNM >= 350 && lightWavelengthNM < 440) {
@@ -1870,7 +1868,7 @@ byte factorAdjust(float color, float factor, byte intensityMax, double gamma) {
                     }
                     setColor = rgbToHsv(
                             factorAdjust(red, factor, (byte) 255, gamma),
-                            factorAdjust(green, factor, (byte) 255, gamma),
+                            factorAdjust(green, factor, (byte) 255, 1),
                             factorAdjust(blue, factor, (byte) 255, gamma)
                     );
 
@@ -3404,35 +3402,100 @@ void animateStaticBeams() {
   */
   // run this if the layout, key, or transposition changes, but not if color or scale changes
   void assignPitches() {
-    sendToLog("assignPitch was called:");
-    for (byte i = 0; i < LED_COUNT; i++) {
-      if (!(h[i].isCmd)) {
-        // steps is the distance from C
-        // the stepsToMIDI function needs distance from A4
-        // it also needs to reflect any transposition, but
-        // NOT the key of the scale.
-        float N = stepsToMIDI(current.pitchRelToA4(h[i].stepsFromC));
-        if (N < 0 || N >= 128) {
-          h[i].note = UNUSED_NOTE;
-          h[i].bend = 0;
-          h[i].frequency = 0.0;
-        } else {
-          h[i].note = ((N >= 127) ? 127 : round(N));
-          h[i].bend = (ldexp(N - h[i].note, 13) / MPEpitchBendSemis);
-          h[i].frequency = MIDItoFreq(N);
+    sendToLog("assignPitches was called with pitchBendEmulation = " + std::to_string(pitchBendEmulation));
+      if (!pitchBendEmulation) {
+      const int CENTER_MIDI_NOTE = 60; // Middle C (C4)
+      int stepsPerCycle = current.tuning().cycleLength;
+      byte zeroStepHex = current.layout().hexMiddleC;
+
+      // Get the transformed layout steps (same as in applyLayout)
+      int8_t acrossSteps = current.layout().acrossSteps;
+      int8_t dnLeftSteps = current.layout().dnLeftSteps;
+      if(mirrorUpDown) dnLeftSteps = -(acrossSteps + dnLeftSteps);
+      if(mirrorLeftRight) { dnLeftSteps = acrossSteps + dnLeftSteps; acrossSteps = -acrossSteps; }
+      for(byte rotations = 0; rotations < layoutRotation; rotations++) {
+        byte keyOffsetY = dnLeftSteps; byte keyOffsetX = acrossSteps;
+        dnLeftSteps = keyOffsetX + keyOffsetY; keyOffsetY = dnLeftSteps;
+        dnLeftSteps = -acrossSteps; acrossSteps = keyOffsetY;
+      }
+
+      for (byte i = 0; i < LED_COUNT; i++) {
+        if (!(h[i].isCmd)) {
+          int8_t distCol = h[i].coordCol - h[zeroStepHex].coordCol;
+          int8_t distRow = h[i].coordRow - h[zeroStepHex].coordRow;
+
+          // Calculate the transformed musical interval from the center
+          int transformedStepsFromC = (
+            (distCol * acrossSteps) +
+            (distRow * (
+              acrossSteps +
+              (2 * dnLeftSteps)
+            ))
+          ) / 2;
+
+          // Map this interval to a MIDI note relative to the center
+          int midiNote = CENTER_MIDI_NOTE + transformedStepsFromC;
+
+          if (midiNote >= 0 && midiNote <= 127) {
+            h[i].note = midiNote;
+            h[i].bend = 0;
+
+            // Calculate frequency based on the transformed interval
+            if (stepsPerCycle == 12) {
+              h[i].frequency = MIDItoFreq(midiNote);
+            } else {
+              float edoStepsFromA = (float)transformedStepsFromC * (1200.0 / stepsPerCycle) / 100.0;
+              float targetMIDI = freqToMIDI(CONCERT_A_HZ) + edoStepsFromA;
+              h[i].frequency = MIDItoFreq(targetMIDI);
+            }
+          } else {
+            h[i].note = UNUSED_NOTE;
+            h[i].bend = 0;
+            h[i].frequency = 0.0;
+            h[i].inScale = 0;
+          }
+
+          sendToLog(
+              "hex #" + std::to_string(i) + ", " +
+              "transformedStepsFromC=" + std::to_string(transformedStepsFromC) + ", " +
+              "note=" + std::to_string(h[i].note) + ", " +
+              "bend=" + std::to_string(h[i].bend) + ", " +
+              "freq=" + std::to_string(h[i].frequency) + ", " +
+              "inScale? " + std::to_string(h[i].inScale) + "."
+          );
         }
-        sendToLog(
-          "hex #" + std::to_string(i) + ", " +
-          "steps=" + std::to_string(h[i].stepsFromC) + ", " +
-          "isCmd? " + std::to_string(h[i].isCmd) + ", " +
-          "note=" + std::to_string(h[i].note) + ", " +
-          "bend=" + std::to_string(h[i].bend) + ", " +
-          "freq=" + std::to_string(h[i].frequency) + ", " +
-          "inScale? " + std::to_string(h[i].inScale) + "."
-        );
       }
     }
-    sendToLog("assignPitches complete.");
+    else {
+      for (byte i = 0; i < LED_COUNT; i++) {
+        if (!(h[i].isCmd)) {
+          // steps is the distance from C
+          // the stepsToMIDI function needs distance from A4
+          // it also needs to reflect any transposition, but
+          // NOT the key of the scale.
+          float N = stepsToMIDI(current.pitchRelToA4(h[i].stepsFromC));
+          if (N < 0 || N >= 128) {
+            h[i].note = UNUSED_NOTE;
+            h[i].bend = 0;
+            h[i].frequency = 0.0;
+          } else {
+            h[i].note = ((N >= 127) ? 127 : round(N));
+            h[i].bend = (ldexp(N - h[i].note, 13) / MPEpitchBendSemis);
+            h[i].frequency = MIDItoFreq(N);
+          }
+          sendToLog(
+            "hex #" + std::to_string(i) + ", " +
+            "steps=" + std::to_string(h[i].stepsFromC) + ", " +
+            "isCmd? " + std::to_string(h[i].isCmd) + ", " +
+            "note=" + std::to_string(h[i].note) + ", " +
+            "bend=" + std::to_string(h[i].bend) + ", " +
+            "freq=" + std::to_string(h[i].frequency) + ", " +
+            "inScale? " + std::to_string(h[i].inScale) + "."
+          );
+        }
+      }
+      sendToLog("assignPitches complete.");
+    }
   }
   void applyScale() {
     sendToLog("applyScale was called:");
@@ -3608,7 +3671,7 @@ void animateStaticBeams() {
     To be honest I don't know how to get just a plain text line to show here other than this!
   */
   void fakeButton() {}
-  GEMItem  menuItemVersion("Firmware 1.2-alpha1", fakeButton);
+  GEMItem  menuItemVersion("ColorOfSound1.2a", fakeButton);
   SelectOptionByte optionByteHardware[] =  {
     { "V1.1", HARDWARE_UNKNOWN }, { "V1.1" , HARDWARE_V1_1 },
     { "V1.2", HARDWARE_V1_2 }
@@ -4405,7 +4468,7 @@ void animateStaticBeams() {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  SelectOptionByte optionByteColor[] =    { { "Rainbow", RAINBOW_MODE }, { "Tiered" , TIERED_COLOR_MODE }, { "Alt", ALTERNATE_COLOR_MODE }, { "Fifths", RAINBOW_OF_FIFTHS_MODE }, { "Piano", PIANO_COLOR_MODE }, { "Alt Piano", PIANO_ALT_COLOR_MODE }, { "Filament", PIANO_INCANDESCENT_COLOR_MODE } };
+  SelectOptionByte optionByteColor[] =    { {"Physics", COLORS_OF_SOUND_MODE}, { "Rainbow", RAINBOW_MODE }, { "Tiered" , TIERED_COLOR_MODE }, { "Alt", ALTERNATE_COLOR_MODE }, { "Fifths", RAINBOW_OF_FIFTHS_MODE }, { "Piano", PIANO_COLOR_MODE }, { "Alt Piano", PIANO_ALT_COLOR_MODE }, { "Filament", PIANO_INCANDESCENT_COLOR_MODE }};
   GEMSelect selectColor( sizeof(optionByteColor) / sizeof(SelectOptionByte), optionByteColor);
   GEMItem  menuItemColor( "Color Mode", colorMode, selectColor, setLEDcolorCodes);
 
@@ -4434,6 +4497,7 @@ void animateStaticBeams() {
   GEMSelect selectPBSpeed(sizeof(optionIntPBWheel) / sizeof(SelectOptionInt), optionIntPBWheel);
   GEMItem  menuItemPBSpeed( "PB Wheel", pbWheelSpeed, selectPBSpeed);
 
+  GEMItem menuItemPitchBendEmulation("PBend Tuning emu?", pitchBendEmulation, selectYesOrNo);
   // Call this procedure to return to the main menu
   void menuHome() {
     menu.setMenuPageCurrent(menuPageMain);
@@ -4655,6 +4719,7 @@ void animateStaticBeams() {
       // menuItemAudioD added here for hardware V1.2
     menuPageMain.addMenuItem(menuGotoMIDI);
       menuPageMIDI.addMenuItem(menuItemSelectMIDIChannel);
+      menuPageMIDI.addMenuItem(menuItemPitchBendEmulation);
       menuPageMIDI.addMenuItem(menuItemMPEpitchBend);
       menuPageMIDI.addMenuItem(menuItemRolandMT32);
       menuPageMIDI.addMenuItem(menuItemGeneralMidi);

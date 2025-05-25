@@ -1808,7 +1808,7 @@ byte factorAdjust(float color, float factor, byte intensityMax, double gamma) {
 
                     // var lightRGB = getColorFromWaveLength (lightWavelengthNM) :
                     // Color values in the range -1 to 1
-                    float gamma = 1.00;
+                    float gamma = 1.5;
                     float blue, green, red, factor = 0;
 
                     if (lightWavelengthNM >= 350 && lightWavelengthNM < 440) {
@@ -1868,7 +1868,7 @@ byte factorAdjust(float color, float factor, byte intensityMax, double gamma) {
                     }
                     setColor = rgbToHsv(
                             factorAdjust(red, factor, (byte) 255, gamma),
-                            factorAdjust(green, factor, (byte) 255, gamma),
+                            factorAdjust(green, factor, (byte) 255, 1),
                             factorAdjust(blue, factor, (byte) 255, gamma)
                     );
 
@@ -3402,29 +3402,52 @@ void animateStaticBeams() {
   */
   // run this if the layout, key, or transposition changes, but not if color or scale changes
   void assignPitches() {
-  sendToLog("assignPitches was called with pitchBendEmulation = " + std::to_string(pitchBendEmulation));
-    if (!pitchBendEmulation) {
+    sendToLog("assignPitches was called with pitchBendEmulation = " + std::to_string(pitchBendEmulation));
+      if (!pitchBendEmulation) {
       const int CENTER_MIDI_NOTE = 60; // Middle C (C4)
       int stepsPerCycle = current.tuning().cycleLength;
       byte zeroStepHex = current.layout().hexMiddleC;
+
+      // Get the transformed layout steps (same as in applyLayout)
+      int8_t acrossSteps = current.layout().acrossSteps;
+      int8_t dnLeftSteps = current.layout().dnLeftSteps;
+      if(mirrorUpDown) dnLeftSteps = -(acrossSteps + dnLeftSteps);
+      if(mirrorLeftRight) { dnLeftSteps = acrossSteps + dnLeftSteps; acrossSteps = -acrossSteps; }
+      for(byte rotations = 0; rotations < layoutRotation; rotations++) {
+        byte keyOffsetY = dnLeftSteps; byte keyOffsetX = acrossSteps;
+        dnLeftSteps = keyOffsetX + keyOffsetY; keyOffsetY = dnLeftSteps;
+        dnLeftSteps = -acrossSteps; acrossSteps = keyOffsetY;
+      }
 
       for (byte i = 0; i < LED_COUNT; i++) {
         if (!(h[i].isCmd)) {
           int8_t distCol = h[i].coordCol - h[zeroStepHex].coordCol;
           int8_t distRow = h[i].coordRow - h[zeroStepHex].coordRow;
-          int edoStepOffset = (distCol * current.layout().acrossSteps) +
-                              (distRow * current.layout().dnLeftSteps);
 
-          // Combine layout offset, transposition, and center target
-          int midiNote = CENTER_MIDI_NOTE + transposeSteps + edoStepOffset;
+          // Calculate the transformed musical interval from the center
+          int transformedStepsFromC = (
+            (distCol * acrossSteps) +
+            (distRow * (
+              acrossSteps +
+              (2 * dnLeftSteps)
+            ))
+          ) / 2;
+
+          // Map this interval to a MIDI note relative to the center
+          int midiNote = CENTER_MIDI_NOTE + transformedStepsFromC;
 
           if (midiNote >= 0 && midiNote <= 127) {
             h[i].note = midiNote;
             h[i].bend = 0;
 
-            float stepsFromA4 = current.pitchRelToA4(midiNote);
-            float midiFloat = stepsToMIDI(stepsFromA4);
-            h[i].frequency = MIDItoFreq(midiFloat);
+            // Calculate frequency based on the transformed interval
+            if (stepsPerCycle == 12) {
+              h[i].frequency = MIDItoFreq(midiNote);
+            } else {
+              float edoStepsFromA = (float)transformedStepsFromC * (1200.0 / stepsPerCycle) / 100.0;
+              float targetMIDI = freqToMIDI(CONCERT_A_HZ) + edoStepsFromA;
+              h[i].frequency = MIDItoFreq(targetMIDI);
+            }
           } else {
             h[i].note = UNUSED_NOTE;
             h[i].bend = 0;
@@ -3434,8 +3457,7 @@ void animateStaticBeams() {
 
           sendToLog(
               "hex #" + std::to_string(i) + ", " +
-              "edoStepOffset=" + std::to_string(edoStepOffset) + ", " +
-              "transposeSteps=" + std::to_string(transposeSteps) + ", " +
+              "transformedStepsFromC=" + std::to_string(transformedStepsFromC) + ", " +
               "note=" + std::to_string(h[i].note) + ", " +
               "bend=" + std::to_string(h[i].bend) + ", " +
               "freq=" + std::to_string(h[i].frequency) + ", " +
