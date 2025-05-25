@@ -3445,7 +3445,7 @@ void animateStaticBeams() {
               h[i].frequency = MIDItoFreq(midiNote);
             } else {
               float edoStepsFromCenter = (float)transformedStepsFromRef * (1200.0 / stepsPerCycle) / 100.0;
-              float targetMIDI = freqToMIDI(CONCERT_A_HZ) + edoStepsFromCenter;
+              float targetMIDI = freqToMIDI(CONCERT_A_HZ) + edoStepsFromCenter + transposeSteps;
               h[i].frequency = MIDItoFreq(targetMIDI);
             }
           } else {
@@ -3573,6 +3573,7 @@ void animateStaticBeams() {
     }
     applyScale();        // when layout changes, have to re-apply scale and re-apply LEDs
     assignPitches();     // same with pitches
+    setLEDcolorCodes();
     sendToLog("buildLayout complete.");
   }
   void cmdOn(byte x) {   // volume and mod wheel read all current buttons
@@ -4614,6 +4615,7 @@ void animateStaticBeams() {
     current.transpose = transposeSteps;
     assignPitches();
     updateSynthWithNewFreqs();
+    setLEDcolorCodes();
   }
   /*
     This procedure is run when the tuning is changed via the menu.
