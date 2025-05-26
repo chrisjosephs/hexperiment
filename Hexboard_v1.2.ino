@@ -171,7 +171,8 @@
   #define PIANO_ALT_COLOR_MODE 4
   #define PIANO_COLOR_MODE 5
   #define PIANO_INCANDESCENT_COLOR_MODE 6
-  byte colorMode = RAINBOW_MODE;
+  #define COLORS_OF_SOUND_MODE 7
+  byte colorMode = COLORS_OF_SOUND_MODE;
 
   #define ANIMATE_NONE 0
   #define ANIMATE_STAR 1
@@ -195,7 +196,7 @@
   #define BRIGHT_FAINT 33   // Highest brightness before backlight turns on
   #define BRIGHT_FAINTER 24 // Lowest brightness before any highlighted button is lit in all color modes
   #define BRIGHT_OFF 0
-  byte globalBrightness = BRIGHT_DIM;
+  byte globalBrightness = BRIGHT_MID;
 
 // @microtonal
   /*
@@ -269,6 +270,10 @@
     overloading the MIDI message queue.
   */
   #define CC_MSG_COOLDOWN_MICROSECONDS 32768
+  /* pitch bend based emulation allowing mapping of MIDI data from microtonal to 12
+  tone MPE with a pitchbend can be disabled for direct EDO mapping */
+  byte pitchBendEmulation = 0; // Controls microtonal pitch bend, default ON
+
   /*
     This class provides the seed values
     needed to map buttons to note frequencies
@@ -283,6 +288,7 @@
     byte cycleLength;         // steps before period/cycle/octave repeats
     float stepSize;           // in cents, 100 = "normal" semitone.
     SelectOptionInt keyChoices[MAX_SCALE_DIVISIONS];
+    float baseFrequencyDegree0; // Might be needed for non-EDO or retuning
     int spanCtoA() {
       return keyChoices[0].val_int;
     }
@@ -313,42 +319,42 @@
     { "12 EDO (Normal)", 12, 100.000,
       {{"C" ,-9},{"C#",-8},{"D" ,-7},{"Eb",-6},{"E" ,-5},{"F",-4}
       ,{"F#",-3},{"G" ,-2},{"G#",-1},{"A" , 0},{"Bb", 1},{"B", 2}
-    }},
+       } , 261.63 },
     { "12 EDO Zeta Peak", 12, 99.8071515654111465,
       {{"C" ,-9},{"C#",-8},{"D" ,-7},{"Eb",-6},{"E" ,-5},{"F",-4}
       ,{"F#",-3},{"G" ,-2},{"G#",-1},{"A" , 0},{"Bb", 1},{"B", 2}
-    }},
+      }, -1 },
     { "17 EDO", 17, 1200.0/17.0,
       {{"C",-13},{"Db",-12},{"C#",-11},{"D",-10},{"Eb",-9},{"D#",-8}
       ,{"E", -7},{"F" , -6},{"Gb", -5},{"F#",-4},{"G", -3},{"Ab",-2}
       ,{"G#",-1},{"A" ,  0},{"Bb",  1},{"A#", 2},{"B",  3}
-    }},
+      }, -1 }, // Absent
     { "19 EDO", 19, 1200.0/19.0,
       {{"C" ,-14},{"C#",-13},{"Db",-12},{"D",-11},{"D#",-10},{"Eb",-9},{"E",-8}
       ,{"E#", -7},{"F" , -6},{"F#", -5},{"Gb",-4},{"G",  -3},{"G#",-2}
       ,{"Ab", -1},{"A" ,  0},{"A#",  1},{"Bb", 2},{"B",   3},{"Cb", 4}
-    }},
+      }, -1 }, // Absent
     { "22 EDO", 22, 1200.0/22.0,
       {{" C", -17},{"^C",-16},{"vC#",-15},{"vD",-14},{" D",-13},{"^D",-12}
       ,{"^Eb",-11},{"vE",-10},{" E",  -9},{" F", -8},{"^F", -7},{"vF#",-6}
       ,{"vG",  -5},{" G", -4},{"^G",  -3},{"vG#",-2},{"vA", -1},{" A",  0}
       ,{"^A",   1},{"^Bb", 2},{"vB",   3},{" B",  4}
-    }},
+      }, -1 }, // Absent
     { "24 EDO", 24, 1200.0/24.0,
       {{"C", -18},{"C+",-17},{"C#",-16},{"Dd",-15},{"D",-14},{"D+",-13}
       ,{"Eb",-12},{"Ed",-11},{"E", -10},{"E+", -9},{"F", -8},{"F+", -7}
       ,{"F#", -6},{"Gd", -5},{"G",  -4},{"G+", -3},{"G#",-2},{"Ad", -1}
       ,{"A",   0},{"A+",  1},{"Bb",  2},{"Bd",  3},{"B",  4},{"Cd",  5}
-    }},
+      }, -1 }, // Absent
     { "31 EDO", 31, 1200.0/31.0,
-      {{"C",-23},{"C+",-22},{"C#",-21},{"Db",-20},{"Dd",-19}
-      ,{"D",-18},{"D+",-17},{"D#",-16},{"Eb",-15},{"Ed",-14}
-      ,{"E",-13},{"E+",-12}                      ,{"Fd",-11}
-      ,{"F",-10},{"F+", -9},{"F#", -8},{"Gb", -7},{"Gd", -6}
-      ,{"G", -5},{"G+", -4},{"G#", -3},{"Ab", -2},{"Ad", -1}
-      ,{"A",  0},{"A+",  1},{"A#",  2},{"Bb",  3},{"Bd",  4}
-      ,{"B",  5},{"B+",  6}                      ,{"Cd",  7}
-    }},
+      {{"C",-23},{">C",-22},{"C#",-21},{"Db",-20},{"<D",-19}
+        ,{"D",-18},{">D",-17},{"D#",-16},{"Eb",-15},{"<E",-14}
+        ,{"E",-13},{"Fb",-12},{"E#",-11}
+        ,{"F",-10},{">F", -9},{"F#", -8},{"Gb", -7},{"<G", -6}
+        ,{"G", -5},{">G", -4},{"G#", -3},{"Ab", -2},{"<A", -1}
+        ,{"A",  0},{">A",  1},{"A#",  2},{"Bb",  3},{"<B",  4}
+        ,{"B",  5},{"Cb",  6},{"B#",  7}
+      }, -1 }, // From ableton microtuning reference
     { "31 EDO Zeta Peak", 31, 1200.0/30.9783818789525220,
       {{"C",-23},{"C+",-22},{"C#",-21},{"Db",-20},{"Dd",-19}
       ,{"D",-18},{"D+",-17},{"D#",-16},{"Eb",-15},{"Ed",-14}
@@ -357,7 +363,7 @@
       ,{"G", -5},{"G+", -4},{"G#", -3},{"Ab", -2},{"Ad", -1}
       ,{"A",  0},{"A+",  1},{"A#",  2},{"Bb",  3},{"Bd",  4}
       ,{"B",  5},{"B+",  6}                      ,{"Cd",  7}
-    }},
+      }, -1 }, // Absent
     { "41 EDO", 41, 1200.0/41.0,
       {{" C",-31},{"^C",-30},{" C+",-29},{" Db",-28},{" C#",-27},{" Dd",-26},{"vD",-24}
       ,{" D",-24},{"^D",-23},{" D+",-22},{" Eb",-21},{" D#",-20},{" Ed",-19},{"vE",-18}
@@ -366,7 +372,7 @@
       ,{" G", -7},{"^G", -6},{" G+", -5},{" Ab", -4},{" G#", -3},{" Ad", -2},{"vA", -1}
       ,{" A",  0},{"^A",  1},{" A+",  2},{" Bb",  3},{" A#",  4},{" Bd",  5},{"vB",  6}
       ,{" B",  7},{"^B",  8}                                                ,{"vC",  9}
-    }},
+      }, -1 }, // Absent
     { "43 EDO", 43, 1200.0/43.0,
       {{" C",-32},{"C+1",-31},{"C+2",-30},{"C+3",-29},{"C+4",-28},{"C+5",-27},{"C+6",-26}
       ,{" D",-25},{"D+1",-24},{"D+2",-23},{"D+3",-22},{"D+4",-21},{"D+5",-20},{"D+6",-19}
@@ -375,7 +381,7 @@
       ,{" G", -7},{"G+1", -6},{"G+2", -5},{"G+3", -4},{"G+4", -3},{"G+5", -2},{"G+6", -1}
       ,{" A",  0},{"A+1",  1},{"A+2",  2},{"A+3",  3},{"A+4",  4},{"A+5",  5},{"A+6",  6}
       ,{" B",  7},{"B+1",  8},{"B+2",  9},{"B+3", 10},                        {"B+4", 11}
-    }},
+      }, -1 }, // Absent
     { "46 EDO", 46, 1200.0/46.0,
       {{" C",-35},{"C+1",-34},{"C+2",-33},{"C+3",-32},{"C+4",-31},{"C+5",-30},{"C+6",-29},{"C+7",-28}
       ,{" D",-27},{"D+1",-26},{"D+2",-25},{"D+3",-24},{"D+4",-23},{"D+5",-22},{"D+6",-21},{"D+7",-20}
@@ -384,7 +390,7 @@
       ,{" G", -8},{"G+1", -7},{"G+2", -6},{"G+3", -5},{"G+4", -4},{"G+5", -3},{"G+6", -2},{"G+7", -1}
       ,{" A",  0},{"A+1",  1},{"A+2",  2},{"A+3",  3},{"A+4",  4},{"A+5",  5},{"A+6",  6},{"A+7",  7}
       ,{" B",  8},{"B+1",  9},{"B+2", 10}
-    }},
+      }, -1 }, // Absent
     { "53 EDO", 53, 1200.0/53.0,
       {{" C", -40},{"^C", -39},{">C",-38},{"vDb",-37},{"Db",-36}
       ,{" C#",-35},{"^C#",-34},{"<D",-33},{"vD", -32}
@@ -398,7 +404,7 @@
       ,{" A",   0},{"^A",   1},{">A",  2},{"vBb",  3},{"Bb",  4}
       ,{" A#",  5},{"^A#",  6},{"<B",  7},{"vB",   8}
       ,{" B",   9},{"^B",  10},{"<C", 11},{"vC",  12}
-    }},
+      }, -1 }, // Absent
     { "58 EDO", 58, 1200.0/58.0,
       {{" C",-44},{"C+1",-43},{"C+2",-42},{"C+3",-41},{"C+4",-40},{"C+5",-39},{"C+6",-38},{"C+7",-37},{"C+8",-36},{"C+8",-35}
       ,{" D",-34},{"D+1",-33},{"D+2",-32},{"D+3",-31},{"D+4",-30},{"D+5",-29},{"D+6",-28},{"D+7",-27},{"D+8",-26},{"D+8",-25}
@@ -407,7 +413,7 @@
       ,{" G",-10},{"G+1", -9},{"G+2", -8},{"G+3", -7},{"G+4", -6},{"G+5", -5},{"G+6", -4},{"G+7", -3},{"G+8", -2},{"G+9", -1}
       ,{" A",  0},{"A+1",  1},{"A+2",  2},{"A+3",  3},{"A+4",  4},{"A+5",  5},{"A+6",  6},{"A+7",  7},{"A+8",  7},{"A+9",  7}
       ,{" B", 10},{"B+1", 11},{"B+2", 12}
-    }},
+      }, -1 }, // Absent
     { "58 EDO Zeta Peak", 58, 1200.0/58.066718758225889,
       {{" C",-44},{"C+1",-43},{"C+2",-42},{"C+3",-41},{"C+4",-40},{"C+5",-39},{"C+6",-38},{"C+7",-37},{"C+8",-36},{"C+8",-35}
       ,{" D",-34},{"D+1",-33},{"D+2",-32},{"D+3",-31},{"D+4",-30},{"D+5",-29},{"D+6",-28},{"D+7",-27},{"D+8",-26},{"D+8",-25}
@@ -416,7 +422,7 @@
       ,{" G",-10},{"G+1", -9},{"G+2", -8},{"G+3", -7},{"G+4", -6},{"G+5", -5},{"G+6", -4},{"G+7", -3},{"G+8", -2},{"G+9", -1}
       ,{" A",  0},{"A+1",  1},{"A+2",  2},{"A+3",  3},{"A+4",  4},{"A+5",  5},{"A+6",  6},{"A+7",  7},{"A+8",  7},{"A+9",  7}
       ,{" B", 10},{"B+1", 11},{"B+2", 12}
-    }},
+      }, -1 }, // Absent
     { "72 EDO", 72, 1200.0/72.0,
       {{" C", -54},{"^C", -53},{">C", -52},{" C+",-51},{"<C#",-50},{"vC#",-49}
       ,{" C#",-48},{"^C#",-47},{">C#",-46},{" Dd",-45},{"<D" ,-44},{"vD" ,-43}
@@ -430,7 +436,7 @@
       ,{" A",   0},{"^A",   1},{">A",   2},{" A+",  3},{"<Bb",  4},{"vBb",  5}
       ,{" Bb",  6},{"^Bb",  7},{">Bb",  8},{" Bd",  9},{"<B" , 10},{"vB" , 11}
       ,{" B",  12},{"^B",  13},{">B",  14},{" Cd", 15},{"<C" , 16},{"vC" , 17}
-    }},
+      }, -1 }, // Absent
     { "72 EDO Zeta Peak", 72, 1200.0/71.9506066608606432,
       {{" C", -54},{"^C", -53},{">C", -52},{" C+",-51},{"<C#",-50},{"vC#",-49}
       ,{" C#",-48},{"^C#",-47},{">C#",-46},{" Dd",-45},{"<D" ,-44},{"vD" ,-43}
@@ -444,7 +450,7 @@
       ,{" A",   0},{"^A",   1},{">A",   2},{" A+",  3},{"<Bb",  4},{"vBb",  5}
       ,{" Bb",  6},{"^Bb",  7},{">Bb",  8},{" Bd",  9},{"<B" , 10},{"vB" , 11}
       ,{" B",  12},{"^B",  13},{">B",  14},{" Cd", 15},{"<C" , 16},{"vC" , 17}
-    }},
+      }, -1 }, // Absent
     { "80 EDO", 80, 1200.0/80.0,
       {{" C",-61},{"C+1",-60},{"C+2",-59},{"C+3",-58},{"C+4",-57},{"C+5",-56},{"C+6",-55},{"C+7",-54},{"C+8",-53},{"C+9",-52},{"C+10",-51},{"C+11",-50},{"C+12",-49},{"C+13",-48}
       ,{" D",-47},{"D+1",-46},{"D+2",-45},{"D+3",-44},{"D+4",-43},{"D+5",-42},{"D+6",-41},{"D+7",-40},{"D+8",-39},{"D+9",-38},{"D+11",-37},{"D+12",-36},{"D+13",-35},{"D+14",-34}
@@ -453,7 +459,7 @@
       ,{" G",-14},{"G+1",-13},{"G+2",-12},{"G+3",-11},{"G+4",-10},{"G+5",-9},{"G+6",-8},{"G+7",-7},{"G+8",-6},{"G+9",-5},{"G+11",-4},{"G+12",-3},{"G+13",-2},{"G+14",-1}
       ,{" A",  0},{"A+1",  1},{"A+2",  2},{"A+3",  3},{"A+4",  4},{"A+5",  5},{"A+6",  6},{"A+7",  7},{"A+8",  8},{"A+9",  9},{"A+10",  10},{"A+11",  11},{"A+12",  12},{"A+13",  13}
       ,{" B", 14},{"B+1", 15},{"B+2", 16},{"B+3", 17},{"B+4", 18}
-    }},
+      }, -1 }, // Absent
     { "87 EDO", 87, 1200.0/87.0,
       {{" C",-66},{"C+1",-65},{"C+2",-64},{"C+3",-63},{"C+4",-62},{"C+5",-61},{"C+6",-60},{"C+7",-59},{"C+8",-58},{"C+9",-57},{"C10",-57},{"C+11",-56},{"C+12",-55},{"C+13",-54},{"C+14",-53},{"C+15",-52}
       ,{" D",-51},{"D+1",-50},{"D+2",-49},{"D+3",-48},{"D+4",-47},{"D+5",-46},{"D+6",-45},{"D+7",-44},{"D+8",-43},{"D+9",-42},{"D+10",-41},{"D+11",-40},{"D+12",-39},{"D+13",-38},{"D+14",-37}
@@ -462,25 +468,25 @@
       ,{" G",-15},{"G+1",-14},{"G+2",-13},{"G+3",-12},{"G+4",-11},{"G+5",-10},{"G+6",-9},{"G+7",-8},{"G+8",-7},{"G+9",-6},{"G+10",-5},{"G+11",-4},{"G+12",-3},{"G+13",-2},{"G+14",-1}
       ,{" A",  0},{"A+1",  1},{"A+2",  2},{"A+3",  3},{"A+4",  4},{"A+5",  5},{"A+6",  6},{"A+7",  7},{"A+8",  8},{"A+9",  9},{"A+10",  10},{"A+11",  11},{"A+12",  12},{"A+13",  13},{"A+14",  14}
       ,{" B", 15},{"B+1", 16},{"B+2", 17},{"B+3", 18}
-    }},
+      }, -1 }, // Absent
     { "Bohlen-Pierce", 13, (1200.0 * (log(3.0/1.0) / log(2.0)))/13.0,
       {{"C",-10},{"Db",-9},{"D",-8},{"E",-7},{"F",-6},{"Gb",-5}
       ,{"G",-4},{"H",-3},{"Jb",-2},{"J",-1},{"A",0},{"Bb",1},{"B",2}
-    }},
+      }, -1 }, // Absent
     { "Carlos Alpha", 9, 77.964990,
       {{"I",0},{"I#",1},{"II-",2},{"II+",3},{"III",4}
       ,{"III#",5},{"IV-",6},{"IV+",7},{"Ib",8}
-    }},
+       }, -1 }, // Absent,
     { "Carlos Beta", 11, 63.832933,
       {{"I",0},{"I#",1},{"IIb",2},{"II",3},{"II#",4},{"III",5}
       ,{"III#",6},{"IVb",7},{"IV",8},{"IV#",9},{"Ib",10}
-    }},
+      }, -1 }, // Absent
     { "Carlos Gamma", 20, 35.0985422804,
       {{" I",  0},{"^I",  1},{" IIb", 2},{"^IIb", 3},{" I#",   4},{"^I#",   5}
       ,{" II", 6},{"^II", 7}
       ,{" III",8},{"^III",9},{" IVb",10},{"^IVb",11},{" III#",12},{"^III#",13}
       ,{" IV",14},{"^IV",15},{" Ib", 16},{"^Ib", 17},{" IV#", 18},{"^IV#", 19}
-    }},
+      }, -1 }, // Absent
   };
 
 // @layout
@@ -793,6 +799,9 @@
     { "Orwell",            TUNING_31EDO,  { 4,3,4,3,4,3,4,3,3 } },
     { "Neutral",           TUNING_31EDO,  { 4,4,4,4,4,4,4,3 } },
     { "Miracle",           TUNING_31EDO,  { 4,3,3,3,3,3,3,3,3,3 } },
+    { "Chrom-Meantone",    TUNING_31EDO,  { 2,3,3,2,3,2,3,2,3,2,3 } },
+    { "Chrom-Meant+14",    TUNING_31EDO,  { 2,3,3,2,3,1,1,3,2,3,2,3 } },
+    { "ChrMeaLydian+14",   TUNING_31EDO,  { 5,5,4,1,3,5,5 } }, // This is a mode, we need a mode submenu
     // 31 EDO ZETA PEAK;
     { "Diatonic",          TUNING_31EDO_ZETA,  { 5,5,3,5,5,5,3 } },
     { "Pentatonic",        TUNING_31EDO_ZETA,  { 5,5,8,5,8 } },
@@ -1281,6 +1290,7 @@
     uint32_t LEDcodeDim = 0;      // calculate it once and store value, to make LED playback snappier
     bool     animate = 0;         // hex is flagged as part of the animation in this frame, helps make animations smoother
     int16_t  stepsFromC = 0;      // number of steps from C4 (semitones in 12EDO; microtones if >12EDO)
+    int16_t  transformedStepsFromA = 0;  // Calculated step offset
     bool     isCmd = 0;           // 0 if it's a MIDI note; 1 if it's a MIDI control cmd
     bool     inScale = 0;         // 0 if it's not in the selected scale; 1 if it is
     byte     note = UNUSED_NOTE;  // MIDI note or control parameter corresponding to this hex
@@ -1573,6 +1583,59 @@
   uint32_t getLEDcode(colorDef c) {
     return strip.gamma32(strip.ColorHSV(transformHue(c.hue),c.sat,c.val * globalBrightness / 255));
   }
+
+colorDef rgbToHsv(double r, double g, double b) {
+    // R, G, B values are divided by 255
+    // to change the range from 0..255 to 0..1
+    r = r / 255.0;
+    g = g / 255.0;
+    b = b / 255.0;
+
+    // h, s, v = hue, saturation, value
+    double cmax = max(r, max(g, b)); // maximum of r, g, b
+    double cmin = min(r, min(g, b)); // minimum of r, g, b
+    double diff = cmax - cmin; // diff of cmax and cmin.
+    float h = -1;
+    byte s = -1;
+
+    // if cmax and cmax are equal then h = 0
+    if (cmax == cmin)
+        h = 0;
+
+        // if cmax equal r then compute h
+    else if (cmax == r)
+        h = fmod(60 * ((g - b) / diff) + 360, 360);
+
+        // if cmax equal g then compute h
+    else if (cmax == g)
+        h = fmod(60 * ((b - r) / diff) + 120, 360);
+
+        // if cmax equal b then compute h
+    else if (cmax == b)
+        h = fmod(60 * ((r - g) / diff) + 240, 360);
+
+    // if cmax equal zero
+    if (cmax == 0)
+        s = 0;
+    else
+        s = (diff / cmax) * 100;
+
+    // compute v
+    byte v = cmax * 100;
+
+    /////////// for clarity, i think best idea default to sat vivid and value normal as it is a bit dull using sv by default from the values obtained from colorsOfSound picker
+    //// but would be good to stil vary the saturation and lightness a bit more between tones somewhere inbetween using sat and vivid values and having a quite high base value
+    return (colorDef) {h, SAT_VIVID, VALUE_NORMAL};
+    return (colorDef) {h,s,v};
+}
+
+byte factorAdjust(float color, float factor, byte intensityMax, double gamma) {
+    if (color == 0.0) {
+        return 0;
+    } else {
+        return round(intensityMax * pow((color * factor), gamma));
+    }
+}
   /*
     This function cycles through each button, and based on what color
     palette is active, it calculates the LED color code in the palette,
@@ -1588,6 +1651,12 @@
         if (paletteBeginsAtKeyCenter) {
           paletteIndex = current.keyDegree(paletteIndex);
         }
+          float cents = 0;
+          bool perf = 0;
+          float center = 0.0;
+          float offCenter = 0;
+          int16_t altHue = 0;
+          float deSaturate = 0;
         switch (colorMode) {
           case TIERED_COLOR_MODE: // This mode sets the color based on the palettes defined above.
             setColor = palette[current.tuningIndex].getColor(paletteIndex);
@@ -1704,9 +1773,9 @@
           case ALTERNATE_COLOR_MODE:
             // This mode assigns each note a color based on the interval it forms with the root note.
             // This is an adaptation of an algorithm developed by Nicholas Fox and Kite Giedraitis.
-            float cents = current.tuning().stepSize * paletteIndex;
-            bool perf = 0;
-            float center = 0.0;
+            cents = current.tuning().stepSize * paletteIndex;
+            perf = 0;
+            center = 0.0;
                    if                    (cents <   50)  {perf = 1; center =    0.0;}
               else if ((cents >=  50) && (cents <  250)) {          center =  147.1;}
               else if ((cents >= 250) && (cents <  450)) {          center =  351.0;}
@@ -1719,14 +1788,97 @@
               else if ((cents >=1450) && (cents < 1650)) {          center = 1551.0;}
               else if ((cents >=1650) && (cents < 1850)) {perf = 1; center = 1698.0;}
               else if ((cents >=1800) && (cents <=1950)) {perf = 1; center = 1902.0;}
-            float offCenter = cents - center;
-            int16_t altHue = positiveMod((int)(150 + (perf * ((offCenter > 0) ? -72 : 72)) - round(1.44 * offCenter)), 360);
-            float deSaturate = perf * (abs(offCenter) < 20) * (1 - (0.02 * abs(offCenter)));
+            offCenter = cents - center;
+            altHue = positiveMod((int)(150 + (perf * ((offCenter > 0) ? -72 : 72)) - round(1.44 * offCenter)), 360);
+            deSaturate = perf * (abs(offCenter) < 20) * (1 - (0.02 * abs(offCenter)));
             setColor = {
               (float)altHue,
               (byte)(255 - round(255 * deSaturate)),
               (byte)(cents ? VALUE_SHADE : VALUE_NORMAL) };
             break;
+            case COLORS_OF_SOUND_MODE:
+                double lightFreqRedLower = 400000000000000;
+                int speedOfLightVacuum = 299792458; // m/sec
+                int speedOfSound = 346; // hardcode this m/sec..  I suppose you could be in a very strange atmosphere like underwater or very very high altitude?!
+                if (h[i].frequency > 0) {
+                    double lightFrequency = h[i].frequency;
+                    int lightOctave = 0; // might be able to use byte
+                    while (lightFrequency < lightFreqRedLower) {
+                        lightFrequency *= 2;
+                        ++lightOctave;
+                    }
+                    // Scale to THz and Nanometers
+                    float lightWavelength = speedOfLightVacuum / lightFrequency;
+                    float lightWavelengthNM = lightWavelength * 1000000000;
+
+                    // var lightRGB = getColorFromWaveLength (lightWavelengthNM) :
+                    // Color values in the range -1 to 1
+                    float gamma = 1;
+                    float blue, green, red, factor = 0;
+
+                    if (lightWavelengthNM >= 350 && lightWavelengthNM < 440) {
+                        // From Purple (1, 0, 1) to Blue (0, 0, 1), with increasing intensity (set below)
+                        red = -(lightWavelengthNM - 440) / (440 - 350);
+                        green = 0.0;
+                        blue = 1.0;
+                    } else if (lightWavelengthNM >= 440 && lightWavelengthNM < 490) {
+                        // From Blue (0, 0, 1) to Cyan (0, 1, 1)
+                        red = 0.0;
+                        green = (lightWavelengthNM - 440) / (490 - 440);
+                        blue = 1.0;
+
+                    } else if (lightWavelengthNM >= 490 && lightWavelengthNM < 510) {
+                        // From  Cyan (0, 1, 1)  to  Green (0, 1, 0)
+                        red = 0.0;
+                        green = 1.0;
+                        blue = -(lightWavelengthNM - 510) / (510 - 490);
+
+                    } else if (lightWavelengthNM >= 510 && lightWavelengthNM < 580) {
+                        // From  Green (0, 1, 0)  to  Yellow (1, 1, 0)
+                        red = (lightWavelengthNM - 510) / (580 - 510);
+                        green = 1.0;
+                        blue = 0.0;
+
+                    } else if (lightWavelengthNM >= 580 && lightWavelengthNM < 645) {
+                        // From  Yellow (1, 1, 0)  to  Red (1, 0, 0)
+                        red = 1.0;
+                        green = -(lightWavelengthNM - 645) / (645 - 580);
+                        blue = 0.0;
+
+                    } else if (lightWavelengthNM >= 645 && lightWavelengthNM <= 780) {
+                        // Solid Red (1, 0, 0), with decreasing intensity (set below)
+                        red = 1.0;
+                        green = 0.0;
+                        blue = 0.0;
+
+                    } else {
+                        red = 0.0;
+                        green = 0.0;
+                        blue = 0.0;
+                    }
+                    // Intensity factor goes through the range:
+                    // 0.1 (350-420 nm) 1.0 (420-645 nm) 1.0 (645-780 nm) 0.2
+
+                    if (lightWavelengthNM >= 350 && lightWavelengthNM < 420) {
+                        factor = 0.1 + 0.9 * (lightWavelengthNM - 350) / (420 - 350);
+
+                    } else if (lightWavelengthNM >= 420 && lightWavelengthNM < 645) {
+                        factor = 1.0;
+
+                    } else if (lightWavelengthNM >= 645 && lightWavelengthNM <= 780) {
+                        factor = 0.2 + 0.8 * (780 - lightWavelengthNM) / (780 - 645);
+
+                    } else {
+                        factor = 0.0;
+                    }
+                    setColor = rgbToHsv(
+                            factorAdjust(red, factor, (byte) 255, gamma),
+                            factorAdjust(green, factor, (byte) 255, 1),
+                            factorAdjust(blue, factor, (byte) 255, gamma)
+                    );
+
+                }
+                break;
         }
         h[i].LEDcodeRest   = getLEDcode(setColor);
         h[i].LEDcodePlay = getLEDcode(setColor.tint());
@@ -3255,35 +3407,66 @@ void animateStaticBeams() {
   */
   // run this if the layout, key, or transposition changes, but not if color or scale changes
   void assignPitches() {
-    sendToLog("assignPitch was called:");
-    for (byte i = 0; i < LED_COUNT; i++) {
-      if (!(h[i].isCmd)) {
-        // steps is the distance from C
-        // the stepsToMIDI function needs distance from A4
-        // it also needs to reflect any transposition, but
-        // NOT the key of the scale.
-        float N = stepsToMIDI(current.pitchRelToA4(h[i].stepsFromC));
-        if (N < 0 || N >= 128) {
-          h[i].note = UNUSED_NOTE;
-          h[i].bend = 0;
-          h[i].frequency = 0.0;
-        } else {
-          h[i].note = ((N >= 127) ? 127 : round(N));
-          h[i].bend = (ldexp(N - h[i].note, 13) / MPEpitchBendSemis);
-          h[i].frequency = MIDItoFreq(N);
+    sendToLog("assignPitches was called with pitchBendEmulation = " + std::to_string(pitchBendEmulation));
+    if (!pitchBendEmulation) {
+      int stepsPerCycle = current.tuning().cycleLength;
+      float ratioPerStep = pow(2.0, 1.0 / stepsPerCycle);
+      int centerMIDINote = 60;
+
+      for (byte i = 0; i < LED_COUNT; i++) {
+        if (!h[i].isCmd) {
+          int midiNote = centerMIDINote + h[i].transformedStepsFromA + transposeSteps;
+          h[i].frequency = CONCERT_A_HZ * pow(ratioPerStep, current.pitchRelToA4(h[i].stepsFromC));
+          if (midiNote >= 0 && midiNote <= 127) {
+            h[i].note = midiNote;
+            h[i].bend = 0;
+          } else {
+            h[i].note = UNUSED_NOTE;
+            h[i].inScale = 0;
+          	h[i].bend = 0;
+          	h[i].frequency = 0.0;
+          }
+
+          sendToLog(
+              "hex #" + std::to_string(i) + ", " +
+              "transformedStepsFromA=" + std::to_string(h[i].transformedStepsFromA) + ", " +
+              "midiNote=" + std::to_string(h[i].note) + ", " +
+              "freq=" + std::to_string(h[i].frequency) + ", " +
+              "inScale? " + std::to_string(h[i].inScale) + "."
+          );
         }
-        sendToLog(
-          "hex #" + std::to_string(i) + ", " +
-          "steps=" + std::to_string(h[i].stepsFromC) + ", " +
-          "isCmd? " + std::to_string(h[i].isCmd) + ", " +
-          "note=" + std::to_string(h[i].note) + ", " +
-          "bend=" + std::to_string(h[i].bend) + ", " +
-          "freq=" + std::to_string(h[i].frequency) + ", " +
-          "inScale? " + std::to_string(h[i].inScale) + "."
-        );
       }
     }
-    sendToLog("assignPitches complete.");
+  else {
+      for (byte i = 0; i < LED_COUNT; i++) {
+        if (!(h[i].isCmd)) {
+          // steps is the distance from C
+          // the stepsToMIDI function needs distance from A4
+          // it also needs to reflect any transposition, but
+          // NOT the key of the scale.
+          float N = stepsToMIDI(current.pitchRelToA4(h[i].stepsFromC));
+          if (N < 0 || N >= 128) {
+            h[i].note = UNUSED_NOTE;
+            h[i].bend = 0;
+            h[i].frequency = 0.0;
+          } else {
+            h[i].note = ((N >= 127) ? 127 : round(N));
+            h[i].bend = (ldexp(N - h[i].note, 13) / MPEpitchBendSemis);
+            h[i].frequency = MIDItoFreq(N);
+          }
+          sendToLog(
+            "hex #" + std::to_string(i) + ", " +
+            "steps=" + std::to_string(h[i].stepsFromC) + ", " +
+            "isCmd? " + std::to_string(h[i].isCmd) + ", " +
+            "note=" + std::to_string(h[i].note) + ", " +
+            "bend=" + std::to_string(h[i].bend) + ", " +
+            "freq=" + std::to_string(h[i].frequency) + ", " +
+            "inScale? " + std::to_string(h[i].inScale) + "."
+          );
+        }
+      }
+      sendToLog("assignPitches complete.");
+    }
   }
   void applyScale() {
     sendToLog("applyScale was called:");
@@ -3292,7 +3475,7 @@ void animateStaticBeams() {
         if (current.scale().tuning == ALL_TUNINGS) {
           h[i].inScale = 1;
         } else {
-          byte degree = current.keyDegree(h[i].stepsFromC);
+          byte degree = current.keyDegree(h[i].stepsFromC + transposeSteps);
           if (degree == 0) {
             h[i].inScale = 1;    // the root is always in the scale
           } else {
@@ -3352,14 +3535,19 @@ void animateStaticBeams() {
             (2 * dnLeftSteps)
           ))
         ) / 2;
+        h[i].transformedStepsFromA = (
+                       (distCol * acrossSteps) +
+                       (distRow * (acrossSteps + 2 * dnLeftSteps))
+                   ) / 2;
         sendToLog(
           "hex #" + std::to_string(i) + ", " +
           "steps from C4=" + std::to_string(h[i].stepsFromC) + "."
         );
       }
     }
-    applyScale();        // when layout changes, have to re-apply scale and re-apply LEDs
     assignPitches();     // same with pitches
+    applyScale();        // when layout changes, have to re-apply scale and re-apply LEDs
+    setLEDcolorCodes();
     sendToLog("buildLayout complete.");
   }
   void cmdOn(byte x) {   // volume and mod wheel read all current buttons
@@ -3459,7 +3647,7 @@ void animateStaticBeams() {
     To be honest I don't know how to get just a plain text line to show here other than this!
   */
   void fakeButton() {}
-  GEMItem  menuItemVersion("Firmware 1.2-alpha1", fakeButton);
+  GEMItem  menuItemVersion("ColorOfSound1.2a", fakeButton);
   SelectOptionByte optionByteHardware[] =  {
     { "V1.1", HARDWARE_UNKNOWN }, { "V1.1" , HARDWARE_V1_1 },
     { "V1.2", HARDWARE_V1_2 }
@@ -4256,7 +4444,7 @@ void animateStaticBeams() {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  SelectOptionByte optionByteColor[] =    { { "Rainbow", RAINBOW_MODE }, { "Tiered" , TIERED_COLOR_MODE }, { "Alt", ALTERNATE_COLOR_MODE }, { "Fifths", RAINBOW_OF_FIFTHS_MODE }, { "Piano", PIANO_COLOR_MODE }, { "Alt Piano", PIANO_ALT_COLOR_MODE }, { "Filament", PIANO_INCANDESCENT_COLOR_MODE } };
+  SelectOptionByte optionByteColor[] =    { {"Physics", COLORS_OF_SOUND_MODE}, { "Rainbow", RAINBOW_MODE }, { "Tiered" , TIERED_COLOR_MODE }, { "Alt", ALTERNATE_COLOR_MODE }, { "Fifths", RAINBOW_OF_FIFTHS_MODE }, { "Piano", PIANO_COLOR_MODE }, { "Alt Piano", PIANO_ALT_COLOR_MODE }, { "Filament", PIANO_INCANDESCENT_COLOR_MODE }};
   GEMSelect selectColor( sizeof(optionByteColor) / sizeof(SelectOptionByte), optionByteColor);
   GEMItem  menuItemColor( "Color Mode", colorMode, selectColor, setLEDcolorCodes);
 
@@ -4285,6 +4473,7 @@ void animateStaticBeams() {
   GEMSelect selectPBSpeed(sizeof(optionIntPBWheel) / sizeof(SelectOptionInt), optionIntPBWheel);
   GEMItem  menuItemPBSpeed( "PB Wheel", pbWheelSpeed, selectPBSpeed);
 
+  GEMItem menuItemPitchBendEmulation("PBend Tuning emu?", pitchBendEmulation, selectYesOrNo);
   // Call this procedure to return to the main menu
   void menuHome() {
     menu.setMenuPageCurrent(menuPageMain);
@@ -4399,7 +4588,9 @@ void animateStaticBeams() {
   void changeTranspose() {     // when you change the transpose via the menu
     current.transpose = transposeSteps;
     assignPitches();
+    applyScale();       // (with fix) marks in-scale tones after transpose
     updateSynthWithNewFreqs();
+    setLEDcolorCodes();
   }
   /*
     This procedure is run when the tuning is changed via the menu.
@@ -4506,6 +4697,7 @@ void animateStaticBeams() {
       // menuItemAudioD added here for hardware V1.2
     menuPageMain.addMenuItem(menuGotoMIDI);
       menuPageMIDI.addMenuItem(menuItemSelectMIDIChannel);
+      menuPageMIDI.addMenuItem(menuItemPitchBendEmulation);
       menuPageMIDI.addMenuItem(menuItemMPEpitchBend);
       menuPageMIDI.addMenuItem(menuItemRolandMT32);
       menuPageMIDI.addMenuItem(menuItemGeneralMidi);
