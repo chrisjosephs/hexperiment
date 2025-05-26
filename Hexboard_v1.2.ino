@@ -354,7 +354,7 @@
         ,{"G", -5},{">G", -4},{"G#", -3},{"Ab", -2},{"<A", -1}
         ,{"A",  0},{">A",  1},{"A#",  2},{"Bb",  3},{"<B",  4}
         ,{"B",  5},{"Cb",  6},{"B#",  7}
-      }, 263.0921203 }, // From ableton microtuning reference
+      }, 257.275 }, // From ableton microtuning reference
     { "31 EDO Zeta Peak", 31, 1200.0/30.9783818789525220,
       {{"C",-23},{"C+",-22},{"C#",-21},{"Db",-20},{"Dd",-19}
       ,{"D",-18},{"D+",-17},{"D#",-16},{"Eb",-15},{"Ed",-14}
@@ -1290,6 +1290,7 @@
     uint32_t LEDcodeDim = 0;      // calculate it once and store value, to make LED playback snappier
     bool     animate = 0;         // hex is flagged as part of the animation in this frame, helps make animations smoother
     int16_t  stepsFromC = 0;      // number of steps from C4 (semitones in 12EDO; microtones if >12EDO)
+    int16_t  transformedStepsFromA = 0;  // Calculated step offset
     bool     isCmd = 0;           // 0 if it's a MIDI note; 1 if it's a MIDI control cmd
     bool     inScale = 0;         // 0 if it's not in the selected scale; 1 if it is
     byte     note = UNUSED_NOTE;  // MIDI note or control parameter corresponding to this hex
@@ -3407,80 +3408,37 @@ void animateStaticBeams() {
   // run this if the layout, key, or transposition changes, but not if color or scale changes
   void assignPitches() {
     sendToLog("assignPitches was called with pitchBendEmulation = " + std::to_string(pitchBendEmulation));
-    sendToLog("assignPitches was called with pitchBendEmulation = " + std::to_string(pitchBendEmulation));
-  if (!pitchBendEmulation) {
-    const int CENTER_MIDI_NOTE = 60; // Middle C (C4) - for MIDI note output
-    int stepsPerCycle = current.tuning().cycleLength;
-    byte zeroStepHex = current.layout().hexMiddleC;
+    if (!pitchBendEmulation) {
+      int stepsPerCycle = current.tuning().cycleLength;
+      float ratioPerStep = pow(2.0, 1.0 / stepsPerCycle);
+      int centerMIDINote = 60;
 
-    // Get the transformed layout steps (copied from applyLayout)
-    int8_t acrossSteps = current.layout().acrossSteps;
-    int8_t dnLeftSteps = current.layout().dnLeftSteps;
-    if(mirrorUpDown) dnLeftSteps = -(acrossSteps + dnLeftSteps);
-    if(mirrorLeftRight) { dnLeftSteps = acrossSteps + dnLeftSteps; acrossSteps = -acrossSteps; }
-    for(byte rotations = 0; rotations < layoutRotation; rotations++) {
-      byte keyOffsetY = dnLeftSteps; byte keyOffsetX = acrossSteps;
-      dnLeftSteps = keyOffsetX + keyOffsetY; keyOffsetY = dnLeftSteps;
-      dnLeftSteps = -acrossSteps; acrossSteps = keyOffsetY;
-    }
-
-    for (byte i = 0; i < LED_COUNT; i++) {
-      if (!(h[i].isCmd)) {
-        int8_t distCol = h[i].coordCol - h[zeroStepHex].coordCol;
-        int8_t distRow = h[i].coordRow - h[zeroStepHex].coordRow;
-
-        int transformedStepsFromRef = (
-          (distCol * acrossSteps) +
-          (distRow * (
-            acrossSteps +
-            (2 * dnLeftSteps)
-          ))
-        ) / 2;
-
-        int midiNote = CENTER_MIDI_NOTE + transposeSteps + transformedStepsFromRef;
-
-        if (midiNote >= 0 && midiNote <= 127) {
-          h[i].note = midiNote;
-          h[i].bend = 0;
-
+      for (byte i = 0; i < LED_COUNT; i++) {
+        if (!h[i].isCmd) {
+          int midiNote = centerMIDINote + h[i].transformedStepsFromA;
           if (stepsPerCycle == 12) {
-            h[i].frequency = MIDItoFreq(midiNote);
+              h[i].frequency = MIDItoFreq(midiNote);
           } else {
-            float ratioPerStep = pow(2.0, 1.0 / stepsPerCycle);
-            float baseFrequency;
-
-            if (current.tuning().baseFrequencyDegree0 > 0.001) {
-              baseFrequency = current.tuning().baseFrequencyDegree0;
-            } else {
-              // Fallback: Approximate frequency of the conceptual root (e.g., 'C') relative to A4
-              float a4Frequency = 440.0;
-              // Get the span from C to A (which is the offset of C relative to A)
-              int stepsFromAtoC = current.tuning().spanCtoA();
-
-              // Calculate the frequency of C relative to A4
-              baseFrequency = a4Frequency * pow(ratioPerStep, stepsFromAtoC);
-            }
-
-            h[i].frequency = baseFrequency * pow(ratioPerStep, transformedStepsFromRef + transposeSteps);
+              h[i].frequency = current.tuning().baseFrequencyDegree0 * pow(ratioPerStep, midiNote);
           }
-        } else {
-          h[i].note = UNUSED_NOTE;
-          h[i].bend = 0;
-          h[i].frequency = 0.0;
-          h[i].inScale = 0;
-        }
+          if (midiNote >= 0 && midiNote <= 127) {
+            h[i].note = midiNote;
+            h[i].bend = 0;
+          } else {
+            h[i].note = UNUSED_NOTE;
+            h[i].inScale = 0;
+          }
 
-        sendToLog(
-            "hex #" + std::to_string(i) + ", " +
-            "transformedStepsFromRef=" + std::to_string(transformedStepsFromRef) + ", " +
-            "transposeSteps=" + std::to_string(transposeSteps) + ", " +
-            "midiNote=" + std::to_string(h[i].note) + ", " +
-            "freq=" + std::to_string(h[i].frequency) + ", " +
-            "inScale? " + std::to_string(h[i].inScale) + "."
-        );
+          sendToLog(
+              "hex #" + std::to_string(i) + ", " +
+              "transformedStepsFromA=" + std::to_string(h[i].transformedStepsFromA) + ", " +
+              "midiNote=" + std::to_string(h[i].note) + ", " +
+              "freq=" + std::to_string(h[i].frequency) + ", " +
+              "inScale? " + std::to_string(h[i].inScale) + "."
+          );
+        }
       }
     }
-  }
   else {
       for (byte i = 0; i < LED_COUNT; i++) {
         if (!(h[i].isCmd)) {
@@ -3579,6 +3537,10 @@ void animateStaticBeams() {
             (2 * dnLeftSteps)
           ))
         ) / 2;
+        h[i].transformedStepsFromA = (
+                       (distCol * acrossSteps) +
+                       (distRow * (acrossSteps + 2 * dnLeftSteps))
+                   ) / 2;
         sendToLog(
           "hex #" + std::to_string(i) + ", " +
           "steps from C4=" + std::to_string(h[i].stepsFromC) + "."
