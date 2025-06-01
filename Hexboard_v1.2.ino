@@ -3411,7 +3411,7 @@ void animateStaticBeams() {
     if (!pitchBendEmulation) {
       int stepsPerCycle = current.tuning().cycleLength;
       float ratioPerStep = pow(2.0, 1.0 / stepsPerCycle);
-      int centerMIDINote = 60;
+      int centerMIDINote = 69 - current.tuning().spanCtoA();
 
       for (byte i = 0; i < LED_COUNT; i++) {
         if (!h[i].isCmd) {
