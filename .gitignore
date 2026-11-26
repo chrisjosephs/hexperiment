@@ -1,0 +1,19 @@
+# IDE / editor
+.idea/
+
+# CMake / CLion scratch
+cmake-build-debug/
+cmake-build-release/
+
+# arduino-cli compile intermediates.
+# build/build.ino.uf2 is the flashable firmware and IS tracked.
+build/build.ino
+build/build.ino.bin
+build/build.ino.elf
+build/build.ino.map
+build/build.ino.hex
+build/build.ino.with_bootloader.*
+
+# leftovers from the v1.1 -> v1.2 move
+HexBoard_v1.1new.ino
+build/HexBoard_v1.1.old

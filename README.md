@@ -17,10 +17,10 @@ Illustration for 31 EDO
 
 
 2) Enables a new direct microtonal/edoOctave+note steps from layout straight to MIDI note mode by default and switchable on/off from menu. The pitchbend emulation from nearest 12 tone mode can now be disabled from the menu (and is disabled by default), so the real MIDI steps will be sent directly through to your DAW or synth with scala/tun tuning instead, but the internal synth will still also play the correct frequency notes.
-    * calculate freq of note for internal synth when center c = 60 +/- transpose steps in direct to MIDI mode...
+    * calculate freq of note for internal synth from the A440 anchor +/- transpose steps in direct to MIDI mode...
 3) Additionally black out MIDI notes that go < 0 or > note 127 out of range on the keyboard when in direct mode rather than wrapping round, to show they are unplayable.
    ![12 EDO Clamp notes transpose](/docs/colors%20of%20sound%20clamp%20notes.png)
-4) Centre note 60 better when in direct MIDI mode, and transpose will also shift the keys correctly for the direct MIDI mapping
+4) Better centring of the note mapping in direct MIDI mode, and transpose will also shift the keys correctly for the direct MIDI mapping. Note that middle C is only MIDI 60 in 12 EDO — the Ableton microtuning files anchor A440 on MIDI 69 and let C fall where the EDO puts it (MIDI 46 in 31 EDO), so that is what the board matches.
 5) Physics Colors of Sounds mode is always the default color map now (so also put it at the bottom of the Color change menu to save clicking back through it again anyway)
 6) Allow extra tuning data for degree 0 frequency hz such as given by ableton microtuning scala files for additional accuracy
 
@@ -32,7 +32,7 @@ Outstanding issues:
 
 ### Todo:
 
-1) Make bosanquet-wilson always the default in various tunings to save time
+1) ~~Make bosanquet-wilson always the default in various tunings to save time~~ — done for 12, 31 and 46 EDO
 2) Make build script to copy new/modified scales from my scales library in to code from scales folder whenever ran
 3) Make a scales > modes submenu to organise scales > modes hierarchically
 
@@ -44,6 +44,18 @@ Some extra scales have been added, thus far:
     * Chromatic Meantone,
     * Chromatic Meantone + 14 (adds undecimal 11th harmonic), 
     * Lydian mode subet of Chromatic Meantone + 14
+  * 46-EDO (Trotwheel set):
+    * cj-Trotwheel-24set (24 degrees: 2,1,2,3,1,3,2,1,1,2,1,2,2,2,2,1,2,2,2,1,2,2,3,4)
+    * cj-Trotwheel-mist (9 degrees: 5,4,7,5,4,5,5,4,7)
+    * cj-Trotwheel-clock (8 degrees: 5,11,5,4,5,5,4,7)
+
+And extra layouts:
+
+  * 46-EDO:
+    * cjValentine/Rodan (across 3, down-left -8)
+    * cjVal/rod-inverse (across -3, down-left 8)
+
+Bosanquet-Wilson is now the first layout offered for 12, 31 and 46 EDO.
 
 I haven't done C++ in years, so may need some  optimisation and tidyup  
 

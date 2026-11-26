@@ -391,7 +391,7 @@
       ,{" G", -8},{"G+1", -7},{"G+2", -6},{"G+3", -5},{"G+4", -4},{"G+5", -3},{"G+6", -2},{"G+7", -1}
       ,{" A",  0},{"A+1",  1},{"A+2",  2},{"A+3",  3},{"A+4",  4},{"A+5",  5},{"A+6",  6},{"A+7",  7}
       ,{" B",  8},{"B+1",  9},{"B+2", 10}
-      }, 0, -1 }, // Absent
+      }, 24, -1 }, // Absent
     { "53 EDO", 53, 1200.0/53.0,
       {{" C", -40},{"^C", -39},{">C",-38},{"vDb",-37},{"Db",-36}
       ,{" C#",-35},{"^C#",-34},{"<D",-33},{"vD", -32}
@@ -528,10 +528,10 @@
     // You might want to arrange them as seems fit for release,
     // including all other layouts as I didn't put them in any particular order
   layoutDef layoutOptions[] = {
+    { "Bosanquet-Wilson",  0, 65,  -1,  -1, TUNING_12EDO },
     { "Wicki-Hayden",      1, 64,   2,  -7, TUNING_12EDO },
     { "Harmonic Table",    0, 75,  -7,   3, TUNING_12EDO },
     { "Janko",             0, 65,   1,  -2, TUNING_12EDO },
-    { "Bosanquet-Wilson",  0, 65,  -1,  -1, TUNING_12EDO },
     { "Compressed Janko",  0, 65,  -1,  -2, TUNING_12EDO },
     { "Compr. Bosanquet",  0, 65,  -1,   3, TUNING_12EDO },
     { "Gerhard",           0, 65,  -1,  -3, TUNING_12EDO },
@@ -581,10 +581,10 @@
     { "Bosanquet-Wilson",  0, 65,  -1,  -3, TUNING_24EDO }, // Maybe call it "1/4 tone Bosanquet"?
     { "Full Gamut",        1, 75,   1,  -9, TUNING_24EDO },
 
+    { "Bosanquet-Wilson",  0, 65,  -2,  -3, TUNING_31EDO },
     { "Compressed Janko",  0, 65,  -3,  -5, TUNING_31EDO },
     { "Compr. Bosanquet",  0, 65,  -3,   8, TUNING_31EDO },
     { "Janko",             0, 65,   2,  -5, TUNING_31EDO },
-    { "Bosanquet-Wilson",  0, 65,  -2,  -3, TUNING_31EDO },
     { "Wicki-Hayden",      1, 64,   5, -18, TUNING_31EDO },
     { "5X -13Y",           1, 64,   5, -13, TUNING_31EDO }, // Unnamed layout, between Wicki-Hayd. and compressed Janko
     { "Harmonic Table",    0, 75, -18,   8, TUNING_31EDO },
@@ -620,11 +620,13 @@
     { "Harmonic Table",    0, 75, -25,  11, TUNING_43EDO },
     { "Full Gamut",        0, 75,   1,  -9, TUNING_43EDO },
 
-    { "Janko",             0, 65,   5,  -8, TUNING_46EDO },
     { "Bosanquet-Wilson",  0, 65,  -5,  -3, TUNING_46EDO },
+    { "Janko",             0, 65,   5,  -8, TUNING_46EDO },
     { "Harmonic Table",    0, 75, -27,  12, TUNING_46EDO },
     { "Echidnic",          0, 65,   5,  -9, TUNING_46EDO },
     { "Full Gamut",        1, 75,   1,  -9, TUNING_46EDO },
+    { "cjValentine/Rodan",  0, 65,  3, -8, TUNING_46EDO },
+    { "cjVal/rod-inverse",  0, 65, -3,  8, TUNING_46EDO},
 
     { "Janko",             0, 65,   5,  -9, TUNING_53EDO },
     { "Bosanquet-Wilson",  0, 65,  -5,  -4, TUNING_53EDO },
@@ -791,6 +793,8 @@
     { "Hijaz Maqam",       TUNING_24EDO, { 2,6,2,4,2,1,3,4 } },
     { "8-EDO",             TUNING_24EDO, { 3,3,3,3,3,3,3,3 } },
     { "Wyschnegradsky",    TUNING_24EDO, { 2,2,2,2,2,1,2,2,2,2,2,2,1 } },
+    // CJ: FOR TROTWHEEL
+
     // 31 EDO; for more: https://en.xen.wiki/w/31edo#Scales
     { "Diatonic",          TUNING_31EDO,  { 5,5,3,5,5,5,3 } },
     { "Pentatonic",        TUNING_31EDO,  { 5,5,8,5,8 } },
@@ -823,6 +827,11 @@
     { "Thai",              TUNING_41EDO,   { 6,6,6,6,6,6,5 } },
     { "Slendro",           TUNING_41EDO,   { 8,8,8,8,9 } },
     { "Pelog / Mavila",    TUNING_41EDO,   { 8,5,5,8,5,5,5 } },
+    // 46 EDO; for more: https://en.xen.wiki/w/46edo#Scales_and_modes
+    { "cj-Trotwheel-24set", TUNING_46EDO,	 { 2,1,2,3,1,3,2,1,1,2,1,2,2,2,2,1,2,2,2,1,2,2,3,4 } },
+    { "cj-Trotwheel-mist",  TUNING_46EDO,  { 5,4,7,5,4,5,5,4,7 } },
+    { "cj-Trotwheel-clock", TUNING_46EDO,  { 5,11,5,4,5,5,4,7  } },
+
     // 53 EDO
     { "Diatonic",          TUNING_53EDO, { 9,9,4,9,9,9,4 } },
     { "Pentatonic",        TUNING_53EDO, { 9,9,13,9,13 } },
@@ -3415,8 +3424,13 @@ void animateStaticBeams() {
 
       for (byte i = 0; i < LED_COUNT; i++) {
         if (!h[i].isCmd) {
+          // pitchRelToA4() folds in current.transpose (kept in sync with transposeSteps
+          // by changeTranspose), so the note number and the frequency below are both
+          // derived from the same transposed step count.
           int stepsFromA = current.pitchRelToA4(h[i].stepsFromC);
-		  int midiNote = 69 + stepsFromA + transposeSteps + current.tuning().offsetMidiNote; // I added offset midi but it's in transformedStepsFromA too but that not valid for 12edo but it seems to be the Total Steps - the last Step number but not for 12edo really also add up to that, or maybe it is because @ABL REFERENCE_PITCH also has the octave in it
+          // offsetMidiNote re-centres the tuning so the middle C key lands on MIDI 60,
+          // matching where Ableton's @ABL REFERENCE_PITCH puts degree 0.
+          int midiNote = 69 + stepsFromA + current.tuning().offsetMidiNote;
           h[i].frequency = CONCERT_A_HZ * pow(ratioPerStep, current.pitchRelToA4(h[i].stepsFromC));
           if (midiNote >= 0 && midiNote <= 127) {
             h[i].note = midiNote;
